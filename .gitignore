@@ -194,6 +194,15 @@ alembic/versions/
 # Ruff stuff:
 .ruff_cache/
 
+# Node / Frontend
+node_modules/
+frontend/dist/
+.npm
+
+# SQLite local dev
+*.db
+*.db-journal
+
 # PyPI configuration file
 .pypirc
 

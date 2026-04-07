@@ -1,5 +1,7 @@
 import logging
 import sys
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI, Request, status
@@ -8,6 +10,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
 from app.core.config import settings
+from app.core.database import engine
 
 
 def configure_logging() -> None:
@@ -26,6 +29,16 @@ def configure_logging() -> None:
     )
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    # Auto-create tables on startup (useful for SQLite local dev)
+    from app.models import Base  # noqa: F811
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+
+
 def create_app() -> FastAPI:
     configure_logging()
 
@@ -36,12 +49,13 @@ def create_app() -> FastAPI:
         version="0.1.0",
         docs_url="/docs" if not settings.is_production else None,
         redoc_url="/redoc" if not settings.is_production else None,
+        lifespan=lifespan,
     )
 
     # CORS
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins,
+        allow_origins=settings.cors_origin_list,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
