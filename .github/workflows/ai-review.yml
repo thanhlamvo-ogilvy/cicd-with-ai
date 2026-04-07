@@ -16,6 +16,9 @@ jobs:
   lint:
     name: Ruff Lint & Format Check
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
 
@@ -55,7 +58,7 @@ jobs:
 
             // — Ruff lint violations —
             try {
-              const raw = fs.readFileSync('ruff-lint-report.json', 'utf8');
+              const raw = fs.readFileSync('backend/ruff-lint-report.json', 'utf8');
               const issues = JSON.parse(raw);
               if (issues.length > 0) {
                 body += '## 🔍 Ruff Lint Violations\n\n';
@@ -75,7 +78,7 @@ jobs:
 
             // — Ruff format violations —
             try {
-              const diff = fs.readFileSync('ruff-format.diff', 'utf8').trim();
+              const diff = fs.readFileSync('backend/ruff-format.diff', 'utf8').trim();
               if (diff.length > 0) {
                 body += '## 🎨 Ruff Format Violations\n\n';
                 body += '<details><summary>Click to expand diff</summary>\n\n';
@@ -91,7 +94,7 @@ jobs:
 
             if (body.length > 0) {
               body = '<!-- ai-review-lint -->\n' + body;
-              body += '---\n*Fix: run `ruff check . --fix && ruff format .` locally.*\n';
+              body += '---\n*Fix: run `cd backend && ruff check . --fix && ruff format .` locally.*\n';
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -116,6 +119,9 @@ jobs:
   typecheck:
     name: Mypy Type Check
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
 
@@ -142,7 +148,7 @@ jobs:
           script: |
             const fs = require('fs');
             try {
-              const output = fs.readFileSync('mypy-output.txt', 'utf8').trim();
+              const output = fs.readFileSync('backend/mypy-output.txt', 'utf8').trim();
               if (output.length === 0) return;
               const lines = output.split('\n').filter(l => l.includes(': error:'));
               if (lines.length === 0) return;
@@ -160,7 +166,7 @@ jobs:
               if (lines.length > 50) {
                 body += `\n> ⚠️ Showing first 50 of ${lines.length} errors.\n`;
               }
-              body += '\n---\n*Run `mypy app/` locally to see all type errors.*\n';
+              body += '\n---\n*Run `cd backend && mypy app/` locally to see all type errors.*\n';
 
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
@@ -187,6 +193,9 @@ jobs:
   security:
     name: Bandit Security Scan
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
 
@@ -213,7 +222,7 @@ jobs:
           script: |
             const fs = require('fs');
             try {
-              const raw = fs.readFileSync('bandit-report.json', 'utf8');
+              const raw = fs.readFileSync('backend/bandit-report.json', 'utf8');
               const report = JSON.parse(raw);
               const results = report.results || [];
               if (results.length === 0) return;
@@ -229,7 +238,7 @@ jobs:
               if (results.length > 50) {
                 body += `\n> ⚠️ Showing first 50 of ${results.length} findings.\n`;
               }
-              body += '\n---\n*Run `bandit -r app/ -c pyproject.toml` locally to review all findings.*\n';
+              body += '\n---\n*Run `cd backend && bandit -r app/ -c pyproject.toml` locally to review all findings.*\n';
 
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
@@ -256,6 +265,9 @@ jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
 
@@ -282,7 +294,7 @@ jobs:
           script: |
             const fs = require('fs');
             try {
-              const xml = fs.readFileSync('test-results.xml', 'utf8');
+              const xml = fs.readFileSync('backend/test-results.xml', 'utf8');
 
               // Parse JUnit XML for failures
               const failureRegex = /<testcase[^>]*classname="([^"]*)"[^>]*name="([^"]*)"[^>]*(?:time="([^"]*)")?[^>]*>\s*<failure[^>]*message="([^"]*)"[^>]*>([\s\S]*?)<\/failure>/g;
@@ -310,7 +322,7 @@ jobs:
               if (failures.length > 20) {
                 body += `> ⚠️ Showing first 20 of ${failures.length} failures.\n`;
               }
-              body += '---\n*Run `pytest --tb=short` locally to reproduce.*\n';
+              body += '---\n*Run `cd backend && pytest --tb=short` locally to reproduce.*\n';
 
               await github.rest.issues.createComment({
                 owner: context.repo.owner,

@@ -1,22 +1,37 @@
 # Copilot Instructions
 
+## Project Structure
+
+This is a monorepo with two workspaces:
+
+- **`backend/`** — Python FastAPI API (AI chatbox + items CRUD)
+- **`frontend/`** — React 19 + TypeScript + Vite UI
+
 ## Build & Run
 
 ```bash
+# Backend
+cd backend
 pip install -e ".[dev]"          # install with dev extras (pytest, ruff, bandit, etc.)
 uvicorn app.main:app --reload    # dev server at http://localhost:8000
+
+# Frontend
+cd frontend
+npm install
+npm run dev                      # dev server at http://localhost:5173
 ```
 
 Docker alternative:
 
 ```bash
 docker compose up --build
-docker compose exec app alembic upgrade head
+docker compose exec backend alembic upgrade head
 ```
 
 ## Test
 
 ```bash
+cd backend
 pytest                                        # all tests
 pytest tests/test_items.py                    # one file
 pytest tests/test_items.py::test_create_item  # one test
@@ -28,6 +43,7 @@ Tests use in-memory SQLite (`aiosqlite`) — no external services needed. The `c
 ## Lint & Format
 
 ```bash
+cd backend
 ruff check . --fix && ruff format .   # fix lint + format
 ruff check .                          # lint only
 mypy app/                             # static type check
@@ -179,24 +195,26 @@ All rules are defined in `pyproject.toml` under `[tool.ruff]` and `[tool.mypy]`.
 ## Database Migrations
 
 ```bash
+cd backend
 alembic revision --autogenerate -m "describe change"
 alembic upgrade head
 alembic downgrade -1
 ```
 
-New ORM models must be imported in `app/models/__init__.py` so Alembic's autogenerate detects them. The alembic `env.py` reads `DATABASE_URL` from `app.core.config.settings`, overriding `alembic.ini`.
+New ORM models must be imported in `backend/app/models/__init__.py` so Alembic's autogenerate detects them. The alembic `env.py` reads `DATABASE_URL` from `app.core.config.settings`, overriding `alembic.ini`.
 
 ## Architecture
 
-This is an async FastAPI app with a layered structure:
+This is an async FastAPI app with a layered structure inside `backend/`:
 
 - **Routes** (`app/api/routes/`) — Thin HTTP handlers. Use `Annotated` type aliases for dependency injection (e.g., `DbSession`). Must set `response_model`, correct `status_code`, and delegate to services.
 - **Services** (`app/services/`) — Business logic. Receive an `AsyncSession`, perform queries, raise `HTTPException` for not-found. Use `flush()` + `refresh()` instead of `commit()` — the `get_db` dependency handles commit/rollback.
+- **AI Providers** (`app/services/providers/`) — Pluggable AI provider implementations (OpenAI, Anthropic, Google) with streaming support.
 - **Models** (`app/models/`) — SQLAlchemy 2.0 `DeclarativeBase` with `Mapped` type annotations. All models re-exported from `app/models/__init__.py`.
 - **Schemas** (`app/schemas/`) — Pydantic v2 models with `ConfigDict(from_attributes=True)` for ORM serialization. Use `Field()` constraints for validation.
 - **Config** (`app/core/config.py`) — `pydantic-settings` `BaseSettings` loading from `.env`. Access via the singleton `settings` instance.
 
-The app is created via `create_app()` factory in `app/main.py`. Swagger UI is disabled in production.
+The frontend is a React 19 SPA in `frontend/` that communicates with the backend via `/api/v1/` routes, proxied through Vite dev server or nginx in production.
 
 ## Key Conventions
 
@@ -208,7 +226,7 @@ The app is created via `create_app()` factory in `app/main.py`. Swagger UI is di
 
 ## CI/CD
 
-The `ai-review.yml` workflow runs on PRs to `main`:
+The `ai-review.yml` workflow runs on PRs to `main` (all CI jobs run from the `backend/` directory):
 
 1. Ruff lint + format check
 2. Mypy type check
