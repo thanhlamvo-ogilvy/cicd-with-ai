@@ -1,6 +1,8 @@
 # Backend Copilot Instructions
 
 > Python 3.12 · FastAPI · SQLAlchemy 2.0 · Pydantic v2
+>
+> See also: shared standards in [`.github/copilot-instructions.md`](../.github/copilot-instructions.md) (SOLID, Clean Code, Git, Security)
 
 ## Build & Run
 
@@ -82,7 +84,37 @@ Enforced by ruff, mypy, bandit, and CI. All code must comply — CI blocks merge
 - Database sessions must be obtained via the `get_db` dependency — never instantiate sessions manually.
 - Use lifespan context managers for startup/shutdown — not the deprecated `on_event`.
 
-### Testing
+### Design for Testability (Michael Feathers)
+
+- Dependencies must be **injected**, not hardcoded — use FastAPI `Depends`, never instantiate services/sessions inline.
+- Side effects (DB, API calls, file I/O) must be isolated behind **seams** — abstractions/interfaces that can be swapped in tests (e.g., `AIProvider` base class, `get_db` dependency override).
+- No hidden state or global mutable state — use `settings` singleton for config, DI for everything else.
+- Functions must be **pure** where possible — same input produces same output, no side effects.
+- Complex logic must be extracted into small, independently testable units — not buried inside route handlers.
+- New code must not be "legacy on arrival" — every new code path must have a test.
+
+### TDD Compliance (Kent Beck)
+
+- Tests should be written before or alongside production code: **Red → Green → Refactor**.
+- Every new or changed function must have a corresponding unit test.
+- Tests must follow the **AAA pattern**: Arrange → Act → Assert.
+- Test names must describe *what* is tested and the *expected outcome*: `test_create_item_returns_201_with_valid_payload`.
+- Code coverage must meet the team threshold (target: 80%+).
+
+### Test Pyramid (Martin Fowler)
+
+- **Unit tests (base)** — fast, isolated, cover all logic branches. Mock DB sessions and external services.
+- **Integration tests (middle)** — verify modules work together. Use the in-memory SQLite test DB with `conftest.py` fixtures.
+- **E2E tests (top)** — minimal, cover critical user journeys only. Do not over-invest here.
+- No inverted pyramid — if you have more slow integration tests than fast unit tests, refactor.
+- Mocks/stubs at the unit level, real dependencies (test DB) at the integration level.
+
+### The Beyoncé Rule (Google)
+
+- *If you liked it, you should have put a test on it.* Any behavior you rely on must be covered by a test.
+- Tests must be **deterministic** — no flaky dependencies on time, network, order, or external services.
+
+### Testing Standards
 
 - Every new endpoint must have at least one positive and one negative test case.
 - Tests use async `httpx.AsyncClient` with `ASGITransport` — no real network calls.
@@ -119,11 +151,76 @@ Enforced by ruff, mypy, bandit, and CI. All code must comply — CI blocks merge
 - Compose dependencies — build complex ones from simple ones.
 - Never store mutable state in module-level variables — use `settings` or the DI system.
 
+### Performance
+
+- No N+1 queries — use `selectinload` / `joinedload` for relationships.
+- Use pagination for all list endpoints — never return unbounded result sets.
+- Avoid unnecessary loops over large collections — use SQL aggregations where possible.
+- No resource leaks — ensure async sessions, connections, and file handles are properly closed.
+- Consider caching for expensive or frequently-repeated queries.
+
 ### Code Reuse
 
 - Before writing new code, check if existing services/utilities already provide the functionality.
 - Do not duplicate logic that exists in `app/services/`.
 - Verify library APIs actually exist — do not use non-existent function signatures.
+
+### Error Handling & Resilience
+
+- Use `tenacity` for retry logic with exponential backoff on external API calls (e.g., AI providers).
+- Set timeouts on all external HTTP calls (`httpx` timeout parameter) — never allow unbounded waits.
+- Implement circuit breaker pattern for AI provider calls — fail fast when a provider is down.
+- Use dead letter patterns for failed async jobs or messages that cannot be processed.
+- Log all caught exceptions with full context (`structlog` bindings) before re-raising or returning error responses.
+- Never use bare `except:` — always catch specific exception types.
+- Graceful degradation: if an AI provider fails, return an appropriate error response — don't crash the app.
+
+### API Design
+
+- All endpoints under `/api/v1/` — version prefix required. See also: shared standards in `.github/copilot-instructions.md`.
+- Use OpenAPI/Swagger auto-generated docs (FastAPI provides this by default at `/docs`).
+- Implement pagination for all list endpoints using `limit`/`offset` or cursor-based patterns.
+- Return consistent error format: `{"detail": "message"}` for all error responses.
+- Use appropriate HTTP status codes: `200` OK, `201` Created, `204` No Content, `400` Bad Request, `404` Not Found, `422` Validation Error, `500` Internal Server Error.
+- Idempotency: `POST` endpoints that create resources should handle duplicate submissions gracefully.
+- Rate limiting should be considered for public-facing endpoints.
+
+### Database & Data Integrity
+
+- All migrations must have both `upgrade()` and `downgrade()` functions — no irreversible migrations.
+- Test migrations against a staging/test database before applying to production.
+- Add database indexes for columns used in `WHERE` clauses and `JOIN` conditions.
+- Use `selectinload`/`joinedload` to avoid N+1 queries on relationships.
+- Wrap multi-step operations in transactions (`get_db` dependency handles commit/rollback).
+- Schema changes must be backward-compatible: use the expand-then-contract pattern.
+- Never delete columns/tables immediately — deprecate first, remove in the next release.
+- Sensitive data (passwords, tokens) must be hashed/encrypted before storage.
+
+### Data Privacy & Compliance
+
+- Identify PII fields in models and document them. See also: shared standards in `.github/copilot-instructions.md`.
+- Never log PII (user emails, names, IP addresses) — use structured logging with PII filtering.
+- Implement data retention: add `created_at` timestamps to all models for lifecycle management.
+- Support user data deletion: design models so user data can be purged without breaking referential integrity.
+- Encrypt sensitive data at rest (database-level encryption or application-level for specific fields).
+- API responses must not leak internal IDs or system details unnecessarily.
+
+### Observability
+
+- Use `structlog` for structured JSON logging in production — console output in development.
+- Include correlation/request IDs in all log entries (middleware should inject these).
+- Log at appropriate levels: `info` for business events, `warning` for recoverable issues, `error` for failures.
+- Add metrics for: request rate, error rate, response duration (RED method).
+- Create health check endpoint at `/health` with dependency checks (DB connectivity).
+- Never log sensitive data: passwords, tokens, API keys, PII.
+
+### Dependency Management
+
+- All dependencies declared in `pyproject.toml` with version constraints.
+- Dev dependencies in `[project.optional-dependencies.dev]`.
+- Run `pip audit` or use Dependabot for vulnerability scanning.
+- Prefer well-maintained libraries with active communities.
+- Pin major versions, allow minor/patch updates: `fastapi>=0.100,<1.0`.
 
 ## Database Migrations
 
@@ -133,7 +230,7 @@ alembic upgrade head
 alembic downgrade -1
 ```
 
-New ORM models must be imported in `app/models/__init__.py` so Alembic's autogenerate detects them.
+New ORM models must be imported in `app/models/__init__.py` so Alembic's autogenerate detects them. Migrations must be safe and reversible.
 
 ## Key Conventions
 

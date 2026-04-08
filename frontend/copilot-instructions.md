@@ -113,6 +113,10 @@ src/
 - Use `React.memo()` for pure components that receive stable props.
 - Avoid creating objects/arrays inline in JSX — define outside the render or memoize.
 - For lists, always provide a stable `key` prop — never use array index as key if items can reorder.
+- Lazy load routes and heavy components with `React.lazy()` and `Suspense`.
+- Measure and monitor Core Web Vitals (LCP, FID, CLS).
+- Bundle size monitored — avoid importing entire libraries when only specific functions needed.
+- Images optimized with appropriate formats (WebP) and lazy loading (`loading="lazy"`).
 
 ### Accessibility
 
@@ -121,6 +125,13 @@ src/
 - Use semantic HTML elements (`<nav>`, `<main>`, `<form>`, `<header>`) where appropriate.
 - Provide `placeholder` text for inputs.
 - Disabled states must be visually distinct and prevent interaction.
+- Color contrast must meet WCAG AA (4.5:1 for normal text, 3:1 for large text).
+- No information conveyed by color alone — use icons, text, or patterns as well.
+- ARIA attributes used only when semantic HTML isn't sufficient — prefer native elements.
+- Screen reader testing performed (or automated a11y audit with axe-core).
+- Error messages are descriptive and programmatically associated with their form fields (`aria-describedby`).
+- Skip navigation link provided for keyboard users.
+- Focus is managed correctly after route changes and modal open/close.
 
 ### Code Reuse
 
@@ -128,6 +139,33 @@ src/
 - Extract repeated patterns into custom hooks or utility functions.
 - Shared types go in `src/types/` — never duplicate type definitions across files.
 - API functions go in `src/services/` — never inline fetch calls in components.
+
+### Internationalization (i18n)
+
+- No hardcoded user-facing strings — all text should be externalized to translation files (e.g., using `react-i18next` or similar).
+- Use locale-aware APIs for date, time, number, and currency formatting (`Intl.DateTimeFormat`, `Intl.NumberFormat`).
+- Consider RTL (right-to-left) layout support in CSS — use logical properties (`margin-inline-start` instead of `margin-left`).
+- Ensure UTF-8 encoding throughout.
+- UI layout must accommodate text expansion (translations can be 30–50% longer than English).
+- Store and transmit times in UTC — display in user's local timezone.
+- Handle pluralization properly — not just "item" vs "items".
+
+### Data Privacy
+
+- Never store sensitive data (tokens, passwords, PII) in `localStorage` or `sessionStorage` unencrypted.
+- Clear sensitive data from state when user logs out.
+- Do not log PII to the browser console in production.
+- Implement consent UI for data collection where required (cookies, analytics).
+- Ensure forms collecting PII have appropriate `autocomplete` attributes and are served over HTTPS.
+- Do not include PII in analytics events or error tracking payloads.
+
+### Observability
+
+- Use structured error logging — capture error message, stack trace, component name, and user action context.
+- Integrate with error tracking service (e.g., Sentry) for production error monitoring.
+- Add performance monitoring for critical user flows (page load, time to interactive).
+- Log API call failures with request context (endpoint, status code, duration).
+- Never log sensitive data (tokens, passwords, PII) in client-side logs.
 
 ### Testing (When Added)
 
