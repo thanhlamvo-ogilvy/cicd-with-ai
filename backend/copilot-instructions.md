@@ -222,6 +222,78 @@ Enforced by ruff, mypy, bandit, and CI. All code must comply — CI blocks merge
 - Prefer well-maintained libraries with active communities.
 - Pin major versions, allow minor/patch updates: `fastapi>=0.100,<1.0`.
 
+### SOLID in Practice (Python/FastAPI)
+
+- **SRP**: Routes handle HTTP only (parse request, call service, return response). Services handle business logic. Models define data structure. Never mix concerns — a route should not contain SQL queries or business rules.
+- **OCP**: Use the `AIProvider` abstract base class pattern — add new providers by creating new classes, not modifying existing ones. Use strategy pattern via dependency injection for swappable behaviors.
+- **LSP**: All `AIProvider` subclasses must implement the full `stream_chat` contract. If a subclass can't support an operation, raise `NotImplementedError` with a clear message — never silently return wrong data.
+- **ISP**: Keep Pydantic schemas focused — split `XxxCreate`, `XxxUpdate`, `XxxResponse` instead of one monolithic model. Route dependencies should only require what they use.
+- **DIP**: Depend on `AIProvider` ABC, not `OpenAIProvider` directly. Use FastAPI `Depends()` to inject `AsyncSession`, services, and config — never import and instantiate directly.
+
+### Security (OWASP for Python)
+
+- SQL injection: always use SQLAlchemy ORM/Core with bound parameters — never interpolate user input into queries with f-strings or `.format()`.
+- Input validation: all request bodies MUST pass through Pydantic schemas — never use `dict` or `**kwargs` from raw request data.
+- Authentication: use `Depends()` for auth middleware — protect routes at the decorator level, not inside handler bodies.
+- CORS: configure `CORSMiddleware` with explicit `allow_origins` list from `settings` — never use `["*"]` in production.
+- Rate limiting: use `slowapi` or middleware-based rate limiting for public endpoints.
+- Secrets: all secrets via `pydantic-settings` from environment variables — never in source code, comments, or default values.
+- File uploads: validate file type, size, and content — never trust `Content-Type` header alone.
+- Dependency scanning: run `bandit -r app/` in CI and `pip-audit` for known CVEs.
+
+### Internationalization (i18n)
+
+- API error messages should use error codes (not localized strings) — let the client handle translation.
+- Accept `Accept-Language` header for content negotiation where applicable.
+- Store all timestamps as UTC in the database — use `datetime.datetime.now(datetime.UTC)`, never `datetime.now()`.
+- Use `babel` or `gettext` for server-side string localization if needed (e.g., email templates).
+- Number and currency formatting should respect locale when generating reports or exports.
+
+### Deployment
+
+- Use multi-stage Docker builds: separate build stage (install deps) from runtime stage (copy app only).
+- Run `uvicorn` with `--workers` in production (not `--reload`) — worker count = `2 * CPU cores + 1`.
+- Configure health check at `/health` that verifies DB connectivity and returns `200` or `503`.
+- Use `lifespan` context manager for startup (DB pool, connections) and shutdown (cleanup, drain) — not deprecated `@app.on_event`.
+- Environment variables for all config: `DATABASE_URL`, `SECRET_KEY`, `CORS_ORIGINS`, `LOG_LEVEL` — never hardcode.
+- Pin Python version in `Dockerfile` and `pyproject.toml` (`requires-python = ">=3.12"`).
+- Use `.dockerignore` to exclude tests, docs, `.git`, `__pycache__`, `.env` from image.
+- Graceful shutdown: handle `SIGTERM` — finish in-flight requests before exiting.
+
+### Documentation
+
+- Use Google-style docstrings for all public functions, classes, and modules.
+- Example:
+  ```python
+  async def create_item(db: AsyncSession, payload: ItemCreate) -> Item:
+      """Create a new item in the database.
+
+      Args:
+          db: Async database session.
+          payload: Validated item creation data.
+
+      Returns:
+          The newly created Item with generated ID.
+
+      Raises:
+          HTTPException: If item with same name already exists.
+      """
+  ```
+- Enrich FastAPI endpoints with `summary`, `description`, and `response_description` parameters for better OpenAPI docs.
+- Add `example` values in Pydantic `Field()` definitions — these appear in Swagger UI.
+- Module-level docstrings for non-obvious modules — explain purpose and key abstractions.
+- Keep README and `copilot-instructions.md` in sync with actual architecture and commands.
+
+### Developer Experience (DX)
+
+- `pip install -e ".[dev]"` installs all dev dependencies (ruff, mypy, pytest, bandit) in one command.
+- Use `--reload` flag during development — uvicorn watches for file changes.
+- Debug with `import pdb; pdb.set_trace()` or use VS Code's Python debugger with launch.json targeting uvicorn.
+- Use `ruff check . --fix && ruff format .` as a pre-commit step — automate with git hooks or `pre-commit`.
+- Profile slow endpoints with `cProfile` or `py-spy` — don't guess at performance issues.
+- Use `httpie` or `curl` for quick API testing — Swagger UI at `/docs` for interactive exploration.
+- Keep `conftest.py` fixtures simple and composable — new tests should work with minimal setup.
+
 ## Database Migrations
 
 ```bash

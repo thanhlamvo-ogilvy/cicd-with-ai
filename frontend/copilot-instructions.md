@@ -167,6 +167,88 @@ src/
 - Log API call failures with request context (endpoint, status code, duration).
 - Never log sensitive data (tokens, passwords, PII) in client-side logs.
 
+### SOLID in Practice (React/TypeScript)
+
+- **SRP**: Components render UI. Hooks manage state and side effects. Services handle API calls. Types define contracts. Never mix — a component should not contain `fetch` calls or complex business logic.
+- **OCP**: Use React composition over modification — extend behavior with wrapper components, render props, or custom hooks instead of adding flags/props to existing components. Example: create `<ScrollableList>` wrapping `<MessageList>` instead of adding `scrollable` prop.
+- **LSP**: Components accepting the same props interface must behave consistently. If `<PrimaryButton>` and `<DangerButton>` both accept `ButtonProps`, they must both handle `onClick`, `disabled`, and `children` identically.
+- **ISP**: Keep prop interfaces focused. Split `ChatBoxProps` into smaller interfaces if it grows beyond 5-6 props. Prefer multiple specific props over a single `options` object. Never force a component to accept props it ignores.
+- **DIP**: Components depend on prop interfaces, not concrete implementations. Services are injected via props or React Context — never import service instances directly in components. Use custom hooks as the abstraction layer between components and services.
+
+### Security
+
+- Never use `dangerouslySetInnerHTML` unless content is sanitized with a library like `DOMPurify` — this is the #1 XSS vector in React.
+- Sanitize all user-generated content before rendering — even in attributes like `href` (prevent `javascript:` URLs).
+- Never store JWTs or sensitive tokens in `localStorage` — prefer `httpOnly` cookies set by the backend or in-memory state that clears on tab close.
+- Validate all form inputs client-side AND server-side — client validation is UX, server validation is security.
+- Use `Content-Security-Policy` headers (configured in nginx/server) — avoid `unsafe-inline` and `unsafe-eval`.
+- Never include API keys, secrets, or credentials in frontend code — Vite env vars prefixed with `VITE_` are embedded in the bundle and visible to users.
+- Implement CSRF protection for state-changing operations — use tokens or `SameSite` cookie attributes.
+- Use `rel="noopener noreferrer"` on all external links (`target="_blank"`).
+
+### Resilience & Error Recovery
+
+- Implement retry logic for failed API calls with exponential backoff — use `AbortController` to cancel in-flight requests on unmount.
+- Show loading states during async operations — never leave the user staring at a blank screen.
+- Display user-friendly error states with retry actions — `"Something went wrong. Try again."` with a button, not a raw error dump.
+- Use React Error Boundaries to catch render errors — show a fallback UI instead of a white screen.
+- Handle network offline gracefully — detect with `navigator.onLine` and show appropriate messaging.
+- Use `AbortController` in `useEffect` cleanup to cancel pending requests when components unmount — prevent state updates on unmounted components.
+- Implement optimistic UI updates for better perceived performance — rollback on server error.
+
+### Dependency Management
+
+- `package-lock.json` must be committed — ensures reproducible builds across environments.
+- Run `npm audit` regularly and in CI — fix or document known vulnerabilities.
+- Prefer established libraries with active maintenance — check npm download trends and GitHub activity before adding.
+- Use tree-shakable imports: `import { debounce } from "lodash-es"` not `import _ from "lodash"`.
+- Review bundle impact before adding a dependency — use `npx bundlephobia <package>` or build analysis.
+- Keep `devDependencies` separate from `dependencies` — dev tools should not ship to production.
+- Do not install packages globally for the project — all deps in `package.json`.
+- Update dependencies regularly: patch/minor updates in automated PRs, major updates reviewed manually.
+
+### Deployment
+
+- Vite build outputs to `dist/` — this is the only artifact deployed to production.
+- Environment variables must be prefixed with `VITE_` to be available in client code — and remember they are PUBLIC (embedded in bundle).
+- Use `import.meta.env.VITE_*` for environment-specific config — never hardcode API URLs or feature flags.
+- Configure nginx (or equivalent) for SPA routing: serve `index.html` for all routes, let React Router handle client-side routing.
+- Enable gzip/brotli compression in nginx for static assets — significantly reduces bundle transfer size.
+- Set long cache headers for hashed assets (`assets/index-[hash].js`) — Vite handles cache busting via content hashing.
+- Use `.dockerignore` to exclude `node_modules/`, `.git/`, and source files from the Docker image — only copy `dist/` and nginx config.
+- Source maps: generate for staging (debugging), disable for production (security).
+
+### Documentation
+
+- Use JSDoc comments for complex utility functions, custom hooks, and non-obvious logic.
+- Example for hooks:
+  ```typescript
+  /**
+   * Manages chat message state and streaming from the backend.
+   *
+   * @param conversationId - Active conversation ID, or null for new chat.
+   * @returns Chat state and actions (messages, sendMessage, isStreaming).
+   *
+   * @example
+   * const { messages, sendMessage, isStreaming } = useChat(conversationId);
+   */
+  ```
+- Document component props in the interface definition — add JSDoc to complex or non-obvious props.
+- Use descriptive file-level comments only for non-obvious modules — the file name and exports should be self-documenting.
+- Keep `README.md` and `copilot-instructions.md` in sync with actual architecture and commands.
+- Add inline comments for workarounds, browser quirks, or non-obvious behavior — explain *why*, not *what*.
+
+### Developer Experience (DX)
+
+- `npm install && npm run dev` — must be all that's needed to start developing.
+- Vite provides HMR (Hot Module Replacement) — changes reflect instantly without full page reload.
+- Use VS Code with ESLint and Prettier extensions for real-time feedback.
+- Use React DevTools browser extension for inspecting component tree, state, and performance.
+- Use the Network tab to debug API calls — check request/response payloads and timing.
+- Add TypeScript path aliases in `tsconfig.json` for clean imports: `@/components/ChatBox` instead of `../../../components/ChatBox`.
+- Use `console.table()` for debugging arrays/objects — more readable than `console.log()`.
+- Storybook recommended for component development in isolation (when component library grows).
+
 ### Testing (When Added)
 
 - Use React Testing Library + Vitest for component tests.
