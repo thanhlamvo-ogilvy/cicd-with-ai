@@ -205,6 +205,20 @@ Enforced by ruff, mypy, bandit, and CI. All code must comply — CI blocks merge
 - Encrypt sensitive data at rest (database-level encryption or application-level for specific fields).
 - API responses must not leak internal IDs or system details unnecessarily.
 
+#### AI Chat PII Rules
+
+The following fields are classified as PII and require special handling:
+- `Message.content` — user prompts and AI responses
+- `Conversation.title` — may contain user-identifiable information
+- Any user-identifiable metadata (IP addresses, user agent strings)
+
+Rules:
+- Log `conversation_id` and `message_id` for tracing — NEVER log `message.content` or any substring of user input.
+- Message retention period MUST be configurable via `MESSAGE_RETENTION_DAYS` environment variable.
+- Implement a purge mechanism for expired messages (cron job or management command).
+- Support cascading user deletion: deleting a user MUST delete all their conversations and messages without breaking referential integrity (use `CASCADE` on foreign keys).
+- AI provider API calls MUST NOT log request/response bodies — log only provider name, model, token count, and latency.
+
 ### Observability
 
 - Use `structlog` for structured JSON logging in production — console output in development.
@@ -235,7 +249,7 @@ Enforced by ruff, mypy, bandit, and CI. All code must comply — CI blocks merge
 - SQL injection: always use SQLAlchemy ORM/Core with bound parameters — never interpolate user input into queries with f-strings or `.format()`.
 - Input validation: all request bodies MUST pass through Pydantic schemas — never use `dict` or `**kwargs` from raw request data.
 - Authentication: use `Depends()` for auth middleware — protect routes at the decorator level, not inside handler bodies.
-- CORS: configure `CORSMiddleware` with explicit `allow_origins` list from `settings` — never use `["*"]` in production.
+- CORS: configure `CORSMiddleware` with explicit `allow_origins` list from `settings` — never use `["*"]` in production. `allow_methods` MUST list specific HTTP methods (`["GET", "POST", "DELETE", "OPTIONS"]`) — never use `["*"]` in production.
 - Rate limiting: use `slowapi` or middleware-based rate limiting for public endpoints.
 - Secrets: all secrets via `pydantic-settings` from environment variables — never in source code, comments, or default values.
 - File uploads: validate file type, size, and content — never trust `Content-Type` header alone.
@@ -312,3 +326,12 @@ New ORM models must be imported in `app/models/__init__.py` so Alembic's autogen
 - JWT auth utilities in `app/core/security.py` (HS256 + bcrypt) — not yet wired into routes.
 - `test_demo.py` contains intentional failures for CI demo — do not fix.
 - All tool config is in `pyproject.toml` under `[tool.ruff]`, `[tool.mypy]`, `[tool.bandit]`.
+
+### Authentication Activation Plan
+
+JWT auth code exists in `app/core/security.py` but is not yet wired into routes. When authentication is needed:
+
+1. Create `app/api/dependencies/auth.py` with a `get_current_user` dependency using `Depends()` and `decode_access_token`.
+2. Routes to protect: all `/api/v1/chat` and `/api/v1/conversations` endpoints. Health check (`/health`) and docs remain public.
+3. Toggle mechanism: use `AUTH_ENABLED` environment variable (default: `false`). When disabled, routes skip auth checks. When enabled, all protected routes require a valid JWT Bearer token.
+4. Auth middleware must be at the route decorator level (`Depends(get_current_user)`) — never inside handler bodies.

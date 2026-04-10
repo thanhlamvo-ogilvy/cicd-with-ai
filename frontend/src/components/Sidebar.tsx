@@ -43,7 +43,15 @@ export function Sidebar({
         {conversations.map((conv) => (
           <div
             key={conv.id}
+            role="button"
+            tabIndex={0}
             onClick={() => onSelect(conv.id)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect(conv.id);
+              }
+            }}
             style={{
               display: "flex",
               alignItems: "center",

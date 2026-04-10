@@ -344,12 +344,330 @@ jobs:
           fi
 
   # ──────────────────────────────────────────────
-  # Job 6: Request Copilot Review
+  # Job 6: Frontend ESLint Lint
+  # ──────────────────────────────────────────────
+  frontend-lint:
+    name: Frontend ESLint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        id: eslint
+        run: |
+          npx eslint . --format json -o eslint-report.json 2>&1 || true
+          npx eslint . > /dev/null 2>&1
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+
+      - name: Post lint violations as PR comment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            try {
+              const raw = fs.readFileSync('frontend/eslint-report.json', 'utf8');
+              const results = JSON.parse(raw);
+              const violations = results.flatMap(f =>
+                f.messages.map(m => ({
+                  file: f.filePath.replace(process.cwd() + '/', ''),
+                  line: m.line,
+                  rule: m.ruleId || 'parse-error',
+                  message: m.message
+                }))
+              );
+              if (violations.length === 0) return;
+
+              let body = '<!-- ai-review-frontend-lint -->\n';
+              body += '## 🔍 Frontend ESLint Violations\n\n';
+              body += '| File | Line | Rule | Message |\n';
+              body += '|------|------|------|---------|\n';
+              for (const v of violations.slice(0, 50)) {
+                body += `| \`${v.file}\` | ${v.line} | \`${v.rule}\` | ${v.message} |\n`;
+              }
+              if (violations.length > 50) {
+                body += `\n> ⚠️ Showing first 50 of ${violations.length} violations.\n`;
+              }
+              body += '\n---\n*Fix: run `cd frontend && npm run lint:fix` locally.*\n';
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body
+              });
+            } catch (e) {
+              // No report — skip
+            }
+
+      - name: Fail if lint violations found
+        if: always()
+        run: |
+          eslint_exit="${{ steps.eslint.outputs.exit_code }}"
+          if [ "$eslint_exit" != "0" ]; then
+            echo "::error::ESLint found violations. See PR comment for details."
+            exit 1
+          fi
+
+  # ──────────────────────────────────────────────
+  # Job 7: Frontend TypeScript Check
+  # ──────────────────────────────────────────────
+  frontend-typecheck:
+    name: Frontend TypeScript Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tsc --noEmit
+        id: tsc
+        run: |
+          npx tsc --noEmit 2>&1 | tee tsc-output.txt || true
+          npx tsc --noEmit > /dev/null 2>&1
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+
+      - name: Post type errors as PR comment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            try {
+              const output = fs.readFileSync('frontend/tsc-output.txt', 'utf8').trim();
+              if (output.length === 0) return;
+              const lines = output.split('\n').filter(l => l.includes(': error TS'));
+              if (lines.length === 0) return;
+
+              let body = '<!-- ai-review-frontend-typecheck -->\n';
+              body += '## 🔤 Frontend TypeScript Errors\n\n';
+              body += '| File | Line | Error |\n';
+              body += '|------|------|-------|\n';
+              for (const line of lines.slice(0, 50)) {
+                const match = line.match(/^(.+)\((\d+),\d+\): error TS\d+: (.+)$/);
+                if (match) {
+                  body += `| \`${match[1]}\` | ${match[2]} | ${match[3]} |\n`;
+                }
+              }
+              if (lines.length > 50) {
+                body += `\n> ⚠️ Showing first 50 of ${lines.length} errors.\n`;
+              }
+              body += '\n---\n*Run `cd frontend && npx tsc --noEmit` locally to see all type errors.*\n';
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body
+              });
+            } catch (e) {
+              // No output — skip
+            }
+
+      - name: Fail if type errors found
+        if: always()
+        run: |
+          tsc_exit="${{ steps.tsc.outputs.exit_code }}"
+          if [ "$tsc_exit" != "0" ]; then
+            echo "::error::TypeScript found type errors. See PR comment for details."
+            exit 1
+          fi
+
+  # ──────────────────────────────────────────────
+  # Job 8: Frontend Vitest
+  # ──────────────────────────────────────────────
+  frontend-test:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Vitest
+        id: vitest
+        run: |
+          npx vitest run --reporter=junit --outputFile=test-results.xml 2>&1 | tee vitest-output.txt || true
+          npx vitest run > /dev/null 2>&1
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+
+      - name: Post test failures as PR comment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            try {
+              const xml = fs.readFileSync('frontend/test-results.xml', 'utf8');
+              const failureRegex = /<testcase[^>]*classname="([^"]*)"[^>]*name="([^"]*)"[^>]*>\s*<failure[^>]*(?:message="([^"]*)")?[^>]*>([\s\S]*?)<\/failure>/g;
+
+              let failures = [];
+              let match;
+              while ((match = failureRegex.exec(xml)) !== null) {
+                failures.push({ cls: match[1], name: match[2], message: match[3] || '', detail: match[4] });
+              }
+              if (failures.length === 0) return;
+
+              let body = '<!-- ai-review-frontend-test -->\n';
+              body += '## 🧪 Frontend Test Failures\n\n';
+              for (const f of failures.slice(0, 20)) {
+                body += `### ❌ \`${f.cls} > ${f.name}\`\n`;
+                if (f.message) body += `**Message:** ${f.message}\n\n`;
+                const detail = f.detail.trim().slice(0, 2000);
+                if (detail) body += '<details><summary>Details</summary>\n\n```\n' + detail + '\n```\n</details>\n\n';
+              }
+              if (failures.length > 20) {
+                body += `> ⚠️ Showing first 20 of ${failures.length} failures.\n`;
+              }
+              body += '---\n*Run `cd frontend && npm run test:run` locally to reproduce.*\n';
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body
+              });
+            } catch (e) {
+              // No test results — skip
+            }
+
+      - name: Fail if tests failed
+        if: always()
+        run: |
+          vitest_exit="${{ steps.vitest.outputs.exit_code }}"
+          if [ "$vitest_exit" != "0" ]; then
+            echo "::error::Frontend tests failed. See PR comment for details."
+            exit 1
+          fi
+
+  # ──────────────────────────────────────────────
+  # Job 9: Frontend Bundle Size Check
+  # ──────────────────────────────────────────────
+  frontend-bundle-size:
+    name: Frontend Bundle Size
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      BUNDLE_BUDGET_KB: 200
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and check bundle size
+        id: bundle
+        run: |
+          npm run build 2>&1 | tee build-output.txt
+          # Calculate total gzipped JS size
+          total_bytes=0
+          for f in dist/assets/*.js; do
+            gz_size=$(gzip -c "$f" | wc -c | tr -d ' ')
+            total_bytes=$((total_bytes + gz_size))
+          done
+          total_kb=$((total_bytes / 1024))
+          echo "size_kb=$total_kb" >> "$GITHUB_OUTPUT"
+          echo "budget_kb=$BUNDLE_BUDGET_KB" >> "$GITHUB_OUTPUT"
+          if [ "$total_kb" -gt "$BUNDLE_BUDGET_KB" ]; then
+            echo "over_budget=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "over_budget=false" >> "$GITHUB_OUTPUT"
+          fi
+        continue-on-error: true
+
+      - name: Post bundle size as PR comment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sizeKb = '${{ steps.bundle.outputs.size_kb }}';
+            const budgetKb = '${{ steps.bundle.outputs.budget_kb }}';
+            const overBudget = '${{ steps.bundle.outputs.over_budget }}' === 'true';
+
+            const icon = overBudget ? '🔴' : '🟢';
+            const status = overBudget ? 'OVER BUDGET' : 'Within budget';
+            let body = '<!-- ai-review-frontend-bundle -->\n';
+            body += '## 📦 Frontend Bundle Size\n\n';
+            body += `| Metric | Value |\n`;
+            body += `|--------|-------|\n`;
+            body += `| Gzipped JS | ${sizeKb} KB |\n`;
+            body += `| Budget | ${budgetKb} KB |\n`;
+            body += `| Status | ${icon} ${status} |\n`;
+
+            if (overBudget) {
+              body += `\n> ⚠️ Bundle is ${sizeKb - budgetKb} KB over budget. Consider code splitting or removing unused dependencies.\n`;
+            }
+            body += '\n---\n*Run `cd frontend && npm run build` locally to check bundle size.*\n';
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body
+            });
+
+      - name: Fail if over budget
+        if: always()
+        run: |
+          if [ "${{ steps.bundle.outputs.over_budget }}" = "true" ]; then
+            echo "::error::Bundle size (${{ steps.bundle.outputs.size_kb }} KB) exceeds budget (${{ steps.bundle.outputs.budget_kb }} KB)."
+            exit 1
+          fi
+
+  # ──────────────────────────────────────────────
+  # Job 10: Request Copilot Review
   # ──────────────────────────────────────────────
   request-copilot-review:
     name: Request Copilot Review
     runs-on: ubuntu-latest
-    needs: [lint, typecheck, security, test]
+    needs: [lint, typecheck, security, test, frontend-lint, frontend-typecheck, frontend-test, frontend-bundle-size]
     if: always()
     steps:
       - name: Request Copilot as reviewer
@@ -368,12 +686,12 @@ jobs:
             }
 
   # ──────────────────────────────────────────────
-  # Job 7: Summary
+  # Job 11: Summary
   # ──────────────────────────────────────────────
   summary:
     name: Post Review Summary
     runs-on: ubuntu-latest
-    needs: [lint, typecheck, security, test, request-copilot-review]
+    needs: [lint, typecheck, security, test, frontend-lint, frontend-typecheck, frontend-test, frontend-bundle-size, request-copilot-review]
     if: always()
     steps:
       - name: Post summary comment
@@ -385,18 +703,26 @@ jobs:
             const typecheckResult = '${{ needs.typecheck.result }}';
             const securityResult = '${{ needs.security.result }}';
             const testResult = '${{ needs.test.result }}';
+            const feLintResult = '${{ needs.frontend-lint.result }}';
+            const feTypecheckResult = '${{ needs.frontend-typecheck.result }}';
+            const feTestResult = '${{ needs.frontend-test.result }}';
+            const feBundleResult = '${{ needs.frontend-bundle-size.result }}';
             const copilotResult = '${{ needs.request-copilot-review.result }}';
 
-            const allPassed = lintResult === 'success' && typecheckResult === 'success' && securityResult === 'success' && testResult === 'success';
+            const allPassed = [lintResult, typecheckResult, securityResult, testResult, feLintResult, feTypecheckResult, feTestResult, feBundleResult].every(r => r === 'success');
 
             let body = '<!-- ai-review-summary -->\n';
             body += '## 📊 AI-Assisted PR Review Summary\n\n';
             body += '| Check | Status |\n';
             body += '|-------|--------|\n';
-            body += `| 🔍 Ruff Lint & Format | ${status(lintResult)} |\n`;
-            body += `| 🔤 Mypy Type Check | ${status(typecheckResult)} |\n`;
-            body += `| 🛡️ Bandit Security | ${status(securityResult)} |\n`;
-            body += `| 🧪 Tests | ${status(testResult)} |\n`;
+            body += `| 🔍 Backend Ruff Lint & Format | ${status(lintResult)} |\n`;
+            body += `| 🔤 Backend Mypy Type Check | ${status(typecheckResult)} |\n`;
+            body += `| 🛡️ Backend Bandit Security | ${status(securityResult)} |\n`;
+            body += `| 🧪 Backend Tests | ${status(testResult)} |\n`;
+            body += `| 🔍 Frontend ESLint | ${status(feLintResult)} |\n`;
+            body += `| 🔤 Frontend TypeCheck | ${status(feTypecheckResult)} |\n`;
+            body += `| 🧪 Frontend Tests | ${status(feTestResult)} |\n`;
+            body += `| 📦 Frontend Bundle Size | ${status(feBundleResult)} |\n`;
             body += `| 🤖 Copilot Review | ${copilotResult === 'success' ? '✅ Requested' : '⚠️ Skipped'} |\n`;
             body += '\n';
 

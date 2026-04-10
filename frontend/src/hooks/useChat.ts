@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { Message } from "../types/chat";
 import { streamChat } from "../services/api";
 
@@ -72,7 +72,7 @@ export function useChat(): UseChatReturn {
             });
           }
         }
-      } catch (error) {
+      } catch {
         setMessages((prev) => {
           const updated = [...prev];
           const last = updated[updated.length - 1];

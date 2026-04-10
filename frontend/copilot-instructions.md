@@ -12,6 +12,26 @@ npm run build            # production build → dist/
 npm run preview          # preview production build
 ```
 
+## Lint & Format
+
+```bash
+npx eslint .                 # lint check
+npx eslint . --fix           # lint + auto-fix
+npx prettier --check .       # format check
+npx prettier --write .       # format all files
+```
+
+ESLint config: `@typescript-eslint` for type-aware rules, `eslint-plugin-react-hooks` for hook dependency correctness, `eslint-plugin-react-refresh` for HMR compatibility. Prettier config: double quotes, 100-char line length, trailing commas — matching the backend's ruff config.
+
+Expected `devDependencies`:
+- `eslint`, `@typescript-eslint/eslint-plugin`, `@typescript-eslint/parser`
+- `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `eslint-plugin-import`
+- `prettier`, `eslint-config-prettier`
+
+Import ordering is enforced via `eslint-plugin-import` — React imports first, external libs, internal modules, then types.
+
+CI runs `npx eslint .` and `npx prettier --check .` — blocks merge on violations.
+
 ## Architecture
 
 Single-page React application communicating with the FastAPI backend via REST + Server-Sent Events.
@@ -88,6 +108,9 @@ src/
 - Display user-friendly error messages in the UI — never raw stack traces or error objects.
 - Use error boundaries for catching render errors in production (React `ErrorBoundary`).
 - Log errors to console in development; suppress in production.
+- All `catch` blocks MUST handle errors explicitly — no empty `catch {}` blocks. At minimum, log the error with context.
+- API errors MUST show user-friendly messages with retry actions (e.g., "Something went wrong. Try again." with a retry button).
+- Malformed SSE data MUST be logged with event metadata (event type, stream position) — never log the raw content (may contain PII).
 
 ### Naming Conventions
 
@@ -158,6 +181,13 @@ src/
 - Implement consent UI for data collection where required (cookies, analytics).
 - Ensure forms collecting PII have appropriate `autocomplete` attributes and are served over HTTPS.
 - Do not include PII in analytics events or error tracking payloads.
+
+#### AI Chat PII Rules
+
+- `message.content` (user prompts and AI responses) is PII — never include it in console logs, error tracking payloads, or analytics events.
+- Clear all chat messages and conversation state from memory when user logs out.
+- Never store chat message content in `localStorage` or `sessionStorage` — keep it in React state only (cleared on tab close).
+- When logging chat-related errors, log `conversationId` and event type only — never message content.
 
 ### Observability
 
@@ -249,12 +279,42 @@ src/
 - Use `console.table()` for debugging arrays/objects — more readable than `console.log()`.
 - Storybook recommended for component development in isolation (when component library grows).
 
-### Testing (When Added)
+### Testing
 
-- Use React Testing Library + Vitest for component tests.
+#### Test Stack
+
+- **Unit & Component tests**: Vitest + React Testing Library + `@testing-library/jest-dom` (with `jsdom` environment)
+- **E2E tests**: Playwright
+
+Expected `devDependencies`:
+- `vitest`, `@testing-library/react`, `@testing-library/jest-dom`, `jsdom`
+- `@playwright/test`
+
+#### Commands
+
+```bash
+npx vitest run                   # run all unit/component tests
+npx vitest run --coverage        # run with coverage report
+npx vitest --watch               # watch mode during development
+npx playwright test              # run E2E tests
+npx playwright test --ui         # run E2E tests with UI
+```
+
+#### File Conventions
+
+- Unit/component tests: `src/**/*.test.ts(x)` — colocated with source files
+- E2E tests: `e2e/**/*.spec.ts` — separate directory
+- Test naming: `describe("ComponentName")` > `it("should ...")` pattern
+- One test file per component/hook — file name matches source: `ChatBox.test.tsx` for `ChatBox.tsx`
+
+#### Test Pyramid
+
+- **Unit/component tests (base)** — many, fast. Every new component MUST have at least one render test and one interaction test.
+- **Custom hooks** — MUST be tested using `renderHook` from `@testing-library/react`.
+- **E2E tests (top)** — few, slow. Only for critical user journeys (chat flow, conversation CRUD). Do not add E2E tests for what unit tests can cover.
 - Test user interactions, not implementation details — query by role, label, or text.
-- Mock API calls at the service layer — never mock `fetch` directly.
-- Every new component should have at least one render test and one interaction test.
+- Mock API calls at the service layer (`src/services/api.ts`) — never mock `fetch` directly.
+- CI runs `npx vitest run` and `npx playwright test` — blocks merge on failures.
 
 ## Key Conventions
 
