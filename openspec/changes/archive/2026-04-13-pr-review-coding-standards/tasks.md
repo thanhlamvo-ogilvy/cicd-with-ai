@@ -38,4 +38,4 @@
 
 - [x] 5.1 Run full backend CI checks locally (`ruff check .`, `mypy app/`, `bandit -r app/`, `pytest`)
 - [x] 5.2 Run full frontend CI checks locally (`npm run lint`, `npx tsc --noEmit`, `npm run test:run`, `npm run build`)
-- [ ] 5.3 Open a test PR to verify the updated workflow runs all jobs and posts correct summary comment
+- [x] 5.3 Open a test PR to verify the updated workflow runs all jobs and posts correct summary comment
