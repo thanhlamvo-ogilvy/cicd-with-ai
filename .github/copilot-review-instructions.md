@@ -1,148 +1,142 @@
+<!--
+PR review checklist for code quality, standards compliance, and safety.
+For detailed guidance on principles, see `.github/copilot-instructions.md` (shared), `backend/copilot-instructions.md`, `frontend/copilot-instructions.md` (workspace-specific).
+-->
+
 # Code Review Instructions
 
-> Informed by: Clean Code (Uncle Bob), TDD (Kent Beck), Test Pyramid (Martin Fowler),
-> Working Effectively with Legacy Code (Michael Feathers), Continuous Delivery (Farley & Humble),
-> Google Engineering Practices, OWASP Top 10, WCAG 2.1, 12-Factor App
-
-## Overview
-
-This document defines the review guidelines for pull requests. This is a monorepo — apply backend rules to `backend/` files and frontend rules to `frontend/` files. Shared rules apply everywhere. Every checklist item is actionable: reviewers should verify each applicable item before approving.
+Review checklist for pull requests. Apply backend rules to `backend/`, frontend rules to `frontend/`, shared rules everywhere.
 
 ---
 
-## 1. Code Quality (Clean Code)
+## 1. Code Quality
 
-- [ ] **Intention-revealing names** — variables, functions, and classes clearly communicate purpose. No abbreviations or single-letter names outside tiny scopes.
-- [ ] **Small functions that do one thing** — each function has a single responsibility. If a comment is needed to explain a block, it should be extracted into a named function.
-- [ ] **DRY** — no unnecessary duplication. Shared logic extracted into utilities or services.
-- [ ] **No dead code** — unused variables, imports, functions, and debugging artifacts removed.
-- [ ] **No code smells** — methods ≤ 30 lines, nesting ≤ 3 levels, no god classes or feature envy.
-- [ ] **Boy Scout Rule** — code left cleaner than found.
-- [ ] **Readability** — code reads top-to-bottom without jumping around. Guard clauses preferred over deep nesting.
-- [ ] **Consistent style** — formatting matches project linters (ruff for Python, ESLint/Prettier for TypeScript).
+See: Clean Code principles in `.github/copilot-instructions.md`
+
+- [ ] Intention-revealing names — variables, functions, classes clearly communicate purpose
+- [ ] Small functions that do one thing (single responsibility)
+- [ ] DRY — no unnecessary duplication
+- [ ] No dead code — remove unused variables, imports, functions
+- [ ] No code smells (methods ≤ 30 lines, nesting ≤ 3 levels)
+- [ ] Boy Scout Rule — code left cleaner than found
+- [ ] Readability — guard clauses preferred over nesting
+- [ ] Consistent style — matches ruff (Python) / ESLint + Prettier (TypeScript)
 
 ## 2. SOLID Principles
 
-- [ ] **Single Responsibility** — each class/module/component has one reason to change. Routes handle HTTP; services handle business logic; components render UI.
-- [ ] **Open/Closed** — code is extendable without modifying existing code. Use abstractions (`AIProvider` base class, React composition).
-- [ ] **Liskov Substitution** — subtypes are interchangeable with base types. Any `AIProvider` implementation honours the `stream_chat` contract.
-- [ ] **Interface Segregation** — no forced dependency on unused interfaces. Props interfaces are focused; large service classes are split.
-- [ ] **Dependency Inversion** — depend on abstractions, not concretions. Dependencies injected (FastAPI `Depends`, React props/context) — never hardcoded.
+See: SOLID definitions in `.github/copilot-instructions.md` (root), `backend/copilot-instructions.md`, `frontend/copilot-instructions.md` (workspace-specific)
+
+- [ ] **SRP**: Single responsibility — routes/components handle one thing
+- [ ] **OCP**: Open/Closed — use abstractions, composition; don't modify existing code
+- [ ] **LSP**: Liskov Substitution — subtypes interchangeable with base types
+- [ ] **ISP**: Interface Segregation — focused interfaces; split if >5-6 props/params
+- [ ] **DIP**: Dependency Inversion — depend on abstractions; inject dependencies
 
 ## 3. Version Control
 
 ### Commit Standards
 
-- [ ] Commit messages follow the structured release notes format defined in `.github/copilot-instructions.md`.
-- [ ] Title line leads with the most newsworthy change; ends with `& more…` if multi-topic; no trailing period.
-- [ ] Changes grouped under curly-brace headers (`{Backend}`, `{Frontend}`, `{CI}`, `{Docs}`, `{Dependencies}`).
-- [ ] Bullet points start with present-tense action verb (`Add`, `Fix`, `Refactor`, `Improve`, `Remove`); ≤ 120 chars; no periods.
-- [ ] If no dependency updates, includes literal `(No dependency updates.)`.
-- [ ] No co-authored-by trailers or generator attribution in commit messages.
+See: Full specification in `.github/copilot-instructions.md` (Git Commit Message Format section)
 
-> **NOTE:** This project uses a custom commit format — **not** Conventional Commits. See `.github/copilot-instructions.md` for the full specification.
+- [ ] Structured release notes format: title + grouped changes (`{Backend}`, `{Frontend}`, etc.) + bullets with action verbs
+- [ ] Title is newsworthy; ends with `& more…` if multi-topic; no trailing period
+- [ ] Bullets ≤ 120 chars; present-tense verbs (`Add`, `Fix`, `Refactor`); no periods
+- [ ] If no dependency updates, includes literal `(No dependency updates.)`
+- [ ] No co-authored-by or generator attribution
 
 ### Branching Strategy
 
-- [ ] No direct commits to `main` — all changes via feature branch + PR.
-- [ ] PR contains a single logical change — flag PRs that bundle unrelated changes.
-- [ ] Branch name is descriptive (`feat/add-login`, `fix/null-avatar`).
-- [ ] Every commit is potentially deployable (Continuous Delivery).
+- [ ] No direct commits to `main` — feature branch + PR
+- [ ] PR single logical change — flag bundled unrelated changes
+- [ ] Branch name descriptive (`feat/...`, `fix/...`)
+- [ ] Every commit potentially deployable (Continuous Delivery)
 
 ## 4. Testability & Testing
 
+See: TDD, Test Pyramid, Beyoncé Rule in workspace-specific instruction files
+
 ### Design for Testability
 
-- [ ] New code has seams for testing — dependencies are injectable, not hardcoded.
-- [ ] Side effects (I/O, network, time) are isolated behind abstractions that can be mocked.
-- [ ] Pure functions preferred where possible — easier to test deterministically.
+- [ ] Dependencies injectable; side effects isolated behind abstractions
+- [ ] Pure functions preferred
 
-### TDD Compliance
+### TDD & Coverage
 
-- [ ] Tests accompany new features — no feature code merged without corresponding tests.
-- [ ] Tests written for bug fixes that reproduce the bug before the fix.
-- [ ] Test names describe the behaviour being verified, not implementation details.
-
-### Test Pyramid
-
-- [ ] Unit tests form the base — fast, isolated, high coverage.
-- [ ] Integration tests verify component interactions (API ↔ DB, frontend ↔ API).
-- [ ] E2E tests used sparingly for critical user flows only.
-- [ ] No test duplication across pyramid levels.
-
-### The Beyoncé Rule
-
-- [ ] "If you liked it, you should have put a test on it." — any behaviour the team relies on must have a test. If it breaks and there's no test, it's the author's fault.
+- [ ] Tests accompany new features (no feature without test)
+- [ ] Bug fix tests reproduce the bug first
+- [ ] Test names describe behaviour
+- [ ] Target coverage: 80%+
 
 ### Backend Testing
 
-- [ ] Every new endpoint has at least one positive and one negative test.
-- [ ] Tests use async `httpx.AsyncClient` with `ASGITransport`.
-- [ ] Fixtures clean up database state after each test.
-- [ ] No `pytest.mark.skip` without an explanation.
-- [ ] Edge cases tested: empty inputs, missing fields, invalid types, boundary values.
+- [ ] Every new endpoint has positive + negative tests
+- [ ] Tests use async `httpx.AsyncClient` with `ASGITransport`
+- [ ] Fixtures clean up DB state after each test
+- [ ] No `pytest.mark.skip` without explanation
+- [ ] Edge cases tested: empty, missing fields, invalid types, boundaries
 
 ### Frontend Testing
 
-- [ ] Components have unit tests for rendering and user interactions.
-- [ ] Custom hooks tested in isolation with `renderHook`.
-- [ ] API service functions tested with mocked fetch/responses.
-- [ ] No snapshot tests unless explicitly justified — prefer assertion-based tests.
+- [ ] Components have unit tests for rendering + interactions
+- [ ] Custom hooks tested in isolation with `renderHook`
+- [ ] API service functions tested with mocked fetch
+- [ ] Assertion-based tests preferred over snapshots
 
 ## 5. Error Handling & Resilience
 
-### Backend Error Handling
+See: Error Handling sections in workspace-specific instructions
 
-- [ ] Services define domain-specific exceptions — routes map them to `HTTPException`.
-- [ ] All error responses use `{"detail": "..."}` shape.
-- [ ] Use `structlog` with structured context — not `print()` or string formatting.
-- [ ] Errors never swallowed silently — every `except` block logs or re-raises.
-- [ ] `HTTPException` used only at the API layer; business logic raises plain Python exceptions.
+### Backend
 
-### Frontend Error Handling
+- [ ] Services define domain-specific exceptions; routes map to `HTTPException`
+- [ ] Error responses use `{"detail": "..."}` shape
+- [ ] Use `structlog` with context (not `print()` or string formatting)
+- [ ] Errors never swallowed; every `except` logs or re-raises
 
-- [ ] All API calls go through `src/services/api.ts` — no inline `fetch`.
-- [ ] `response.ok` checked before parsing response body.
-- [ ] User-friendly error messages displayed — never raw error objects in UI.
-- [ ] Async operations wrapped in `try/catch`.
-- [ ] Error boundaries used for component tree crash isolation.
+### Frontend
+
+- [ ] All API calls through `src/services/api.ts`
+- [ ] `response.ok` checked before parsing
+- [ ] User-friendly error messages in UI
+- [ ] Async operations wrapped in try/catch
+- [ ] Error boundaries for render error isolation
 
 ### Resilience Patterns
 
-- [ ] External service calls have timeouts configured.
-- [ ] Retry logic uses exponential backoff with jitter — no tight retry loops.
-- [ ] Circuit breaker pattern considered for frequently failing dependencies.
-- [ ] Graceful degradation — features degrade rather than crash when dependencies are unavailable.
-- [ ] No race conditions or concurrency issues — especially in async code.
+- [ ] External calls have timeouts
+- [ ] Retry logic: exponential backoff with jitter
+- [ ] Circuit breaker for frequently failing dependencies
+- [ ] Graceful degradation — features degrade, don't crash
+- [ ] No race conditions or concurrency issues
 
 ## 6. API Design
 
-- [ ] RESTful conventions followed — proper HTTP verbs, plural resource nouns, correct status codes.
-- [ ] API versioning strategy in place for breaking changes (`/v1/`, `/v2/`).
-- [ ] Pagination implemented for list endpoints — never unbounded result sets.
-- [ ] Request/response schemas documented and validated.
-- [ ] Idempotent operations where appropriate (PUT, DELETE).
-- [ ] Consistent error response format across all endpoints.
+- [ ] RESTful conventions: proper verbs, plural nouns, correct status codes
+- [ ] API versioning for breaking changes (`/v1/`, `/v2/`)
+- [ ] Pagination on list endpoints (never unbounded results)
+- [ ] Consistent error response format: `{"detail": "message"}`
+- [ ] Idempotent operations (PUT, DELETE)
 
-### Backend API (FastAPI)
+### Backend (FastAPI)
 
-- [ ] `response_model` set on every endpoint.
-- [ ] `status_code=201` for POST creation, `status_code=204` for DELETE (no body).
-- [ ] `Annotated` used for dependency injection.
-- [ ] Routes grouped into `APIRouter` instances.
-- [ ] Parameters validated with `Field` constraints or `Query`/`Path` helpers.
-- [ ] Request bodies validated with Pydantic models — no raw `dict` parsing.
+- [ ] `response_model` on every endpoint
+- [ ] Status codes: 201 (POST creation), 204 (DELETE no body)
+- [ ] `Annotated` for dependency injection
+- [ ] Routes grouped in `APIRouter`
+- [ ] Request bodies validated with Pydantic (no raw `dict`)
 
 ## 7. Database & Data Integrity
 
-- [ ] Migrations are safe and reversible — no destructive changes without a migration plan.
-- [ ] Indexes added for columns used in WHERE, JOIN, and ORDER BY clauses.
-- [ ] Foreign keys and constraints enforce referential integrity at the DB level.
-- [ ] Transactions used for multi-step operations — no partial writes on failure.
-- [ ] Database sessions come from the `get_db` dependency — never instantiated manually.
-- [ ] Sensitive data encrypted at rest where required.
-- [ ] No raw SQL concatenation — use parameterised queries or ORM exclusively.
-- [ ] Schema changes are backward-compatible with running application code (expand-contract pattern).
+See: Database & Data Integrity in `backend/copilot-instructions.md`
+
+- [ ] Migrations safe + reversible (no destructive changes without plan)
+- [ ] Indexes on WHERE, JOIN, ORDER BY columns
+- [ ] Foreign keys enforce referential integrity
+- [ ] Transactions wrap multi-step operations
+- [ ] DB sessions from `get_db` dependency
+- [ ] Sensitive data encrypted at rest
+- [ ] No raw SQL concatenation; parameterised queries or ORM only
+- [ ] Schema changes backward-compatible (expand-contract)
 
 ## 8. Security (OWASP)
 
@@ -163,203 +157,184 @@ This document defines the review guidelines for pull requests. This is a monorep
 
 ## 9. Data Privacy & Compliance
 
-- [ ] PII identified, documented, and minimised — only collect what's necessary.
-- [ ] Data retention policies implemented — no indefinite storage of personal data.
-- [ ] User consent obtained before collecting or processing personal data.
-- [ ] Data deletion/anonymisation mechanisms exist for user data removal requests.
-- [ ] Sensitive fields masked in logs and error messages.
-- [ ] Data access audited — who accessed what and when.
-- [ ] Third-party data sharing documented and compliant with privacy policies.
+- [ ] PII identified, documented, minimised
+- [ ] Data retention policies enforced
+- [ ] User consent obtained before collection
+- [ ] Deletion/anonymisation mechanisms for requests
+- [ ] Sensitive fields masked in logs/errors
+- [ ] Data access audited
+- [ ] Third-party sharing documented, compliant
 
 ## 10. Performance
 
-### Backend Performance
+See: Performance sections in workspace-specific instructions
 
-- [ ] No N+1 queries — use eager loading or batch queries.
-- [ ] Large data sets handled with pagination or streaming — no unbounded queries.
-- [ ] Caching used where appropriate (response caching, query result caching).
-- [ ] No memory or resource leaks — connections, file handles, and sessions properly closed.
-- [ ] Expensive operations offloaded to background tasks where possible.
-- [ ] Database queries use `EXPLAIN` analysis for complex joins.
+### Backend
 
-### Frontend Performance
+- [ ] No N+1 queries (use eager loading, batch queries)
+- [ ] Large data sets paginated or streamed
+- [ ] Caching where appropriate
+- [ ] No resource leaks (connections, file handles closed)
+- [ ] Expensive operations offloaded to background tasks
+- [ ] Complex queries analysed with `EXPLAIN`
 
-- [ ] `useMemo` and `useCallback` applied where re-renders are expensive.
-- [ ] Stable `key` props on list items — never array index if items can reorder.
-- [ ] Lazy loading used for routes and heavy components (`React.lazy`, `Suspense`).
-- [ ] Images optimised — proper sizing, formats, and lazy loading.
-- [ ] Bundle size monitored — flag large new dependencies.
-- [ ] No unnecessary re-renders — verify with React DevTools Profiler.
+### Frontend
+
+- [ ] `useMemo` + `useCallback` for expensive re-renders
+- [ ] Stable `key` props on lists (never array index)
+- [ ] Lazy loading for routes + heavy components
+- [ ] Images optimised (sizing, formats, lazy loading)
+- [ ] Bundle size monitored (flag large new deps)
+- [ ] No unnecessary re-renders (verify with React DevTools)
 
 ## 11. Accessibility (a11y)
 
-- [ ] Semantic HTML used — `<button>`, `<nav>`, `<main>`, `<section>`, `<article>` over generic `<div>`/`<span>`.
-- [ ] All interactive elements keyboard-accessible — focus order logical, no keyboard traps.
-- [ ] Form inputs have associated `<label>` elements or `aria-label`/`aria-labelledby`.
-- [ ] Images have meaningful `alt` text (or `alt=""` for decorative images).
-- [ ] Colour contrast meets WCAG AA (4.5:1 for normal text, 3:1 for large text).
-- [ ] Focus indicators visible — never `outline: none` without a custom alternative.
-- [ ] ARIA roles, states, and properties used correctly — no ARIA is better than bad ARIA.
-- [ ] Dynamic content changes announced to screen readers (`aria-live`, `role="status"`).
-- [ ] Touch targets ≥ 44×44px for mobile interfaces.
-- [ ] Error messages programmatically associated with form fields (`aria-describedby`).
+See: Accessibility section in `frontend/copilot-instructions.md`
+
+- [ ] Semantic HTML (`<button>`, `<nav>`, `<main>`, not `<div>`)
+- [ ] All interactive elements keyboard-accessible
+- [ ] Form inputs have associated `<label>` or `aria-label`
+- [ ] Images have meaningful `alt` text (or `alt=""` for decorative)
+- [ ] Color contrast: WCAG AA (4.5:1 normal, 3:1 large text)
+- [ ] Focus indicators visible
+- [ ] ARIA used correctly (no ARIA better than bad ARIA)
+- [ ] Dynamic content announced to screen readers
+- [ ] Touch targets ≥ 44×44px
+- [ ] Error messages tied to form fields (`aria-describedby`)
 
 ## 12. Internationalization (i18n)
 
-- [ ] No user-facing hardcoded strings — text extracted to translation files or constants.
-- [ ] Date, time, number, and currency formatting uses locale-aware APIs (`Intl.*`).
-- [ ] Timestamps stored and transmitted in UTC — converted to local time only at display.
-- [ ] RTL (right-to-left) layout support considered — use logical CSS properties (`margin-inline-start` over `margin-left`).
-- [ ] Text expansion accommodated — UI doesn't break with longer translated strings (~30-40% expansion).
-- [ ] Pluralisation rules handled correctly — not just appending "s".
-- [ ] Character encoding is UTF-8 throughout the stack.
+See: i18n sections in workspace-specific instructions
+
+- [ ] No hardcoded user-facing strings (externalize to translation files)
+- [ ] Date/time/number/currency formatting locale-aware (`Intl.*`)
+- [ ] Timestamps UTC; converted to local time at display
+- [ ] RTL support considered (logical CSS props)
+- [ ] Text expansion accommodated (~30-40% for translations)
+- [ ] Pluralization handled correctly
+- [ ] UTF-8 encoding throughout
 
 ## 13. Deployment & CI
 
 ### CI Pipeline
 
-- [ ] All CI checks pass: ruff lint + format, mypy type check, bandit security scan, pytest.
-- [ ] CI pipeline defined in `ai-review.yml` — changes to CI reviewed carefully.
-- [ ] No CI steps skipped or disabled without documented justification.
-- [ ] CI runs in under 10 minutes — flag slow tests or builds.
+- [ ] All CI checks pass: ruff, mypy, bandit, pytest
+- [ ] No CI steps skipped without documented justification
+- [ ] Build completes in <10 min
 
-### 12-Factor Compliance
+### 12-Factor App
 
-- [ ] Config stored in environment variables — not in code.
-- [ ] Dependencies explicitly declared and isolated.
-- [ ] Stateless processes — no local state between requests.
-- [ ] Port binding — app is self-contained, binds its own port.
-- [ ] Dev/prod parity — minimise gaps between environments.
+- [ ] Config in environment variables (not code)
+- [ ] Dependencies explicitly declared + isolated
+- [ ] Stateless processes
+- [ ] Self-contained app, binds own port
+- [ ] Dev/prod parity minimised
 
-### Infrastructure as Code / GitOps
+### Infrastructure as Code
 
-- [ ] Infrastructure changes defined in code (Terraform, Docker Compose, etc.) — no manual config.
-- [ ] `docker-compose.yml` changes reviewed for security and resource implications.
-- [ ] Environment-specific config separated from application code.
+- [ ] Infrastructure changes in code (Terraform, Docker, etc)
+- [ ] `docker-compose.yml` changes reviewed
+- [ ] Environment-specific config separated from app
 
 ## 14. Release Strategy
 
-### Release Readiness
+### Readiness
 
-- [ ] Feature complete — all acceptance criteria met.
-- [ ] No known critical bugs — all blockers resolved.
-- [ ] Documentation updated (API docs, README, CHANGELOG).
-- [ ] Stakeholders notified of breaking changes.
+- [ ] Feature complete
+- [ ] No critical bugs
+- [ ] Docs updated (API docs, README, CHANGELOG)
+- [ ] Stakeholders notified of breaking changes
 
-### Safe Release Patterns
+### Safe Patterns
 
-- [ ] Feature flags used for risky rollouts — new features can be toggled without redeployment.
-- [ ] Canary/blue-green deployment considered for high-risk changes.
-- [ ] Database migrations run independently of application deployment (expand-contract).
+- [ ] Feature flags for risky rollouts
+- [ ] Canary/blue-green deployment considered
+- [ ] DB migrations independent of app deployment
 
 ### Rollback & Recovery
 
-- [ ] Rollback plan documented — how to revert if something goes wrong.
-- [ ] Database migrations are reversible.
-- [ ] Monitoring and alerting in place to detect issues post-deploy.
+- [ ] Rollback plan documented
+- [ ] DB migrations reversible
+- [ ] Monitoring + alerting post-deploy
 
 ## 15. Observability
 
-### Structured Logging
+### Logging
 
-- [ ] Use `structlog` (backend) with structured key-value context — not `print()` or string formatting.
-- [ ] Log levels used correctly: `DEBUG` for dev, `INFO` for flow, `WARNING` for recoverable issues, `ERROR` for failures.
-- [ ] Correlation IDs propagated across service boundaries for request tracing.
-- [ ] No sensitive data in logs (passwords, tokens, PII).
+- [ ] Structured logging (backend: `structlog`; key-value context)
+- [ ] Log levels correct: DEBUG (dev), INFO (flow), WARNING (recoverable), ERROR (failures)
+- [ ] Correlation IDs propagate across boundaries
+- [ ] No sensitive data in logs
 
-### Metrics
+### Metrics & Tracing
 
-- [ ] Key business and operational metrics exposed (request count, latency, error rate).
-- [ ] Custom metrics added for new features where appropriate.
-- [ ] Metrics follow naming conventions (e.g., `http_requests_total`, `db_query_duration_seconds`).
+- [ ] Business + operational metrics exposed
+- [ ] Trace context propagated across APIs
+- [ ] Spans created for significant operations
 
-### Distributed Tracing
+### Alerts
 
-- [ ] Trace context propagated across API boundaries.
-- [ ] Spans created for significant operations (DB queries, external calls).
-- [ ] Trace IDs included in error responses for debugging.
+- [ ] Alerts for new failure modes
+- [ ] Actionable thresholds (no fatigue)
+- [ ] Runbook linked to each alert
 
-### Alerting
+## 16. Dependencies
 
-- [ ] Alerts defined for new failure modes introduced by the change.
-- [ ] Alert thresholds are actionable — no alert fatigue from noisy alerts.
-- [ ] Runbook linked for each alert — responders know what to do.
+- [ ] New deps justified (no trivial additions)
+- [ ] Versions pinned in lock files
+- [ ] Licenses compatible with project
+- [ ] Vulnerability scanning on new/updated deps
+- [ ] No transitive dependency bloat
+- [ ] Lock files committed + reviewed
 
-## 16. Dependency Management
+## 17. Cost & Efficiency
 
-- [ ] New dependencies justified — no dependency added for trivial functionality.
-- [ ] Versions pinned in `requirements.txt` / `package.json` — no floating ranges for production.
-- [ ] Licence compatible with project licence — flag GPL/AGPL in permissive-licence projects.
-- [ ] Vulnerability scanning run on new/updated dependencies (bandit, `npm audit`).
-- [ ] Dependency tree checked for bloat — flag transitive dependencies that are excessively large.
-- [ ] Lock files (`package-lock.json`, etc.) committed and reviewed for unexpected changes.
-
-## 17. Cost & Resource Efficiency
-
-- [ ] Resource usage proportional to workload — no over-provisioning.
-- [ ] Auto-scaling configured where applicable — resources scale down when idle.
-- [ ] Temporary resources (files, containers, cloud resources) cleaned up after use.
-- [ ] Cost tags applied to cloud resources for allocation tracking.
-- [ ] Expensive operations (large queries, file processing) bounded and monitored.
-- [ ] Caching and CDN used to reduce redundant computation and bandwidth.
+- [ ] Resource usage proportional to workload
+- [ ] Auto-scaling configured (resources scale down idle)
+- [ ] Temp resources cleaned up
+- [ ] Cost tags applied to cloud resources
+- [ ] Expensive operations bounded + monitored
+- [ ] Caching + CDN reduce redundancy
 
 ## 18. Developer Experience (DX)
 
-- [ ] README updated if setup steps, commands, or config changed.
-- [ ] Local development works with a single command (`docker compose up`, `npm run dev`).
-- [ ] New environment variables documented in `.env.example` or README.
-- [ ] Error messages helpful for developers — include context, not just "something went wrong".
-- [ ] PR template followed — description explains *what* and *why*.
-- [ ] Onboarding friction minimised — new contributors can get started quickly.
+- [ ] README updated (setup, config changes)
+- [ ] Local dev works with one command (`docker compose up`)
+- [ ] New env vars documented
+- [ ] Error messages helpful (context, not just "something wrong")
+- [ ] PR template followed (what + why)
+- [ ] Onboarding friction minimised
 
 ## 19. Architecture & Design
 
-- [ ] Changes fit existing architecture — no patterns that conflict with the layered structure.
-- [ ] No tight coupling or broken abstractions — components are replaceable.
-- [ ] API contracts backward-compatible or properly versioned.
-- [ ] ADR (Architecture Decision Record) created for significant architectural decisions.
-- [ ] Service boundaries respected — no cross-service direct DB access.
-- [ ] Shared code extracted to a common location — no copy-paste across workspaces.
-- [ ] Verify all library APIs used actually exist — flag non-existent function signatures.
-- [ ] Flag any code that duplicates existing utilities or services.
+See: Architecture sections in workspace-specific instructions
+
+- [ ] Changes fit existing architecture
+- [ ] No tight coupling or broken abstractions
+- [ ] API contracts backward-compatible or versioned
+- [ ] ADR created for significant decisions
+- [ ] Service boundaries respected
+- [ ] Shared code in common location
+- [ ] Verify APIs used exist (no non-existent signatures)
+- [ ] No code duplication across utilities/services
 
 ## 20. Documentation & Communication
 
-- [ ] PR description explains *what* changed and *why*.
-- [ ] Public APIs documented — endpoint, parameters, response shape, error codes.
-- [ ] Breaking changes clearly called out in PR description and CHANGELOG.
-- [ ] Config changes documented — new env vars, feature flags, permissions.
-- [ ] Runbooks updated for operational changes.
-- [ ] Inline code comments used only where *why* isn't obvious — no restating what the code does.
+- [ ] PR description explains what + why
+- [ ] Public APIs documented (endpoint, params, response, errors)
+- [ ] Breaking changes called out (PR + CHANGELOG)
+- [ ] Config changes documented (new env vars, feature flags, perms)
+- [ ] Runbooks updated (operational changes)
+- [ ] Inline comments explain *why*, not *what*
 
 ## 21. AI Context & Token Efficiency
 
-### Context Files
-
-- [ ] Root `.github/copilot-instructions.md` stays in sync with project-level conventions.
-- [ ] Workspace-level `copilot-instructions.md` files updated when local patterns/APIs change.
-- [ ] `.github/copilot-review-instructions.md` updated if review standards change.
-
-### Token-Saving Structure
-
-- [ ] Context files use structured formats (lists, headers) over verbose prose.
-- [ ] Context layered (shared → workspace-specific) so AI loads only what it needs.
-- [ ] References used instead of duplicating content across docs.
-
-### AI Ignore Rules
-
-- [ ] Large auto-generated files (lockfiles, migrations, bundles) excluded from AI indexing.
-- [ ] Generated code, vendor directories, and data files not indexed.
-
-### Discoverability
-
-- [ ] Directory naming clear and consistent.
-- [ ] Self-documenting code reduces need for AI to ask clarifying questions.
-
-### Prompt Cache Friendliness
-
-- [ ] Stable context (project info, conventions) separated from volatile content.
-- [ ] No unnecessary churn in context files that would invalidate prompt caches.
+- [ ] Root `.github/copilot-instructions.md` in sync with conventions
+- [ ] Workspace `copilot-instructions.md` updated with pattern/API changes
+- [ ] Structured formats (lists, headers) over wordy prose
+- [ ] References used, not duplication
+- [ ] Auto-generated files excluded from indexing
+- [ ] Self-documenting code reduces AI context needs
 
 ---
 
