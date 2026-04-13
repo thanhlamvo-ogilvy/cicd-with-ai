@@ -24,7 +24,7 @@ async def chat(request: ChatRequest, db: DbSession) -> StreamingResponse:
         # Send conversation ID as first event
         yield f"data: {json.dumps({'conversation_id': conversation_id})}\n\n"
 
-        async for token in chat_service.stream_chat_response(db, request):
+        async for token in chat_service.stream_chat_response(db, request, conversation):
             yield f"data: {json.dumps({'token': token})}\n\n"
 
         yield "data: [DONE]\n\n"

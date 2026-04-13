@@ -78,6 +78,7 @@ export function Sidebar({
                 e.stopPropagation();
                 onDelete(conv.id);
               }}
+              aria-label={`Delete conversation: ${conv.title}`}
               style={{
                 background: "none",
                 border: "none",
@@ -85,6 +86,14 @@ export function Sidebar({
                 cursor: "pointer",
                 fontSize: "16px",
                 padding: "0 4px",
+                outline: "2px solid transparent",
+                outlineOffset: "2px",
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.outline = "2px solid #007bff";
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.outline = "2px solid transparent";
               }}
             >
               ×

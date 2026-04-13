@@ -4,10 +4,13 @@ from anthropic import AsyncAnthropic
 
 from app.services.providers.base import AIProvider, ChatMessage
 
+# Timeout in seconds for API calls
+API_TIMEOUT = 60
+
 
 class AnthropicProvider(AIProvider):
     def __init__(self, api_key: str) -> None:
-        self.client = AsyncAnthropic(api_key=api_key)
+        self.client = AsyncAnthropic(api_key=api_key, timeout=API_TIMEOUT)
 
     async def stream_chat(
         self, messages: list[ChatMessage], model: str

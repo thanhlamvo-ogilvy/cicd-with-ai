@@ -1,12 +1,16 @@
 from collections.abc import AsyncGenerator
 
 import structlog
-from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
+from app.core.exceptions import (
+    ConversationNotFoundError,
+    ProviderConfigurationError,
+    ProviderNotFoundError,
+)
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.schemas.chat import ChatRequest
@@ -24,8 +28,8 @@ def get_provider(provider_name: str) -> AIProvider:
         api_key = settings.openai_api_key
         base_url = settings.openai_base_url
         if not api_key and not base_url:
-            raise HTTPException(
-                status_code=400, detail="Provider 'openai' is not configured"
+            raise ProviderConfigurationError(
+                "Provider 'openai' is not configured"
             )
         return OpenAIProvider(api_key=api_key, base_url=base_url or None)
 
@@ -35,12 +39,12 @@ def get_provider(provider_name: str) -> AIProvider:
     }
 
     if provider_name not in providers:
-        raise HTTPException(status_code=400, detail=f"Unknown provider: {provider_name}")
+        raise ProviderNotFoundError(f"Unknown provider: {provider_name}")
 
     api_key, provider_cls = providers[provider_name]
     if not api_key:
-        raise HTTPException(
-            status_code=400, detail=f"Provider '{provider_name}' is not configured"
+        raise ProviderConfigurationError(
+            f"Provider '{provider_name}' is not configured"
         )
 
     return provider_cls(api_key)
@@ -56,7 +60,7 @@ async def get_or_create_conversation(
         )
         conversation = result.scalar_one_or_none()
         if conversation is None:
-            raise HTTPException(status_code=404, detail="Conversation not found")
+            raise ConversationNotFoundError("Conversation not found")
         return conversation
 
     conversation = Conversation(
@@ -95,11 +99,10 @@ async def get_conversation_messages(
 
 
 async def stream_chat_response(
-    db: AsyncSession, request: ChatRequest
+    db: AsyncSession, request: ChatRequest, conversation: Conversation
 ) -> AsyncGenerator[str, None]:
     """Orchestrate the full chat flow: save user message, stream AI response, save result."""
     provider = get_provider(request.provider)
-    conversation = await get_or_create_conversation(db, request)
 
     await save_message(db, conversation.id, "user", request.content)
     await db.commit()
@@ -153,7 +156,7 @@ async def get_conversation(db: AsyncSession, conversation_id: str) -> Conversati
     )
     conversation = result.scalar_one_or_none()
     if conversation is None:
-        raise HTTPException(status_code=404, detail="Conversation not found")
+        raise ConversationNotFoundError("Conversation not found")
     return conversation
 
 

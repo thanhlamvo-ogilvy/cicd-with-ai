@@ -45,10 +45,10 @@ See [Clean Code by Robert C. Martin](https://www.oreilly.com/library/view/clean-
 
 ## SOLID Principles
 
-**S** — Single Responsibility: one reason to change (routes=HTTP, services=logic, components=UI)  
-**O** — Open/Closed: extend via abstraction, not modification (e.g., `AIProvider` ABC)  
-**L** — Liskov Substitution: subtypes interchangeable (honor contracts like `stream_chat`)  
-**I** — Interface Segregation: focused interfaces/props (split if >5–6 items)  
+**S** — Single Responsibility: one reason to change (routes=HTTP, services=logic, components=UI)
+**O** — Open/Closed: extend via abstraction, not modification (e.g., `AIProvider` ABC)
+**L** — Liskov Substitution: subtypes interchangeable (honor contracts like `stream_chat`)
+**I** — Interface Segregation: focused interfaces/props (split if >5–6 items)
 **D** — Dependency Inversion: depend on abstractions; inject dependencies (never hardcode)
 
 Workspace-specific guidance: backend/copilot-instructions.md, frontend/copilot-instructions.md

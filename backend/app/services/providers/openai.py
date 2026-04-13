@@ -4,10 +4,13 @@ from openai import AsyncOpenAI
 
 from app.services.providers.base import AIProvider, ChatMessage
 
+# Timeout in seconds for API calls
+API_TIMEOUT = 60
+
 
 class OpenAIProvider(AIProvider):
     def __init__(self, api_key: str, base_url: str | None = None) -> None:
-        kwargs: dict[str, str] = {"api_key": api_key or "lm-studio"}
+        kwargs: dict[str, str | int] = {"api_key": api_key or "lm-studio", "timeout": API_TIMEOUT}
         if base_url:
             kwargs["base_url"] = base_url
         self.client = AsyncOpenAI(**kwargs)

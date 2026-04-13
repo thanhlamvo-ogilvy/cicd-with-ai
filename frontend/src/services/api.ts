@@ -74,8 +74,9 @@ export async function* streamChat(
 
       try {
         yield JSON.parse(data);
-      } catch {
-        // Skip malformed JSON
+      } catch (e) {
+        // Log malformed JSON for debugging but continue streaming
+        console.error("Failed to parse SSE data:", data, e);
       }
     }
   }
