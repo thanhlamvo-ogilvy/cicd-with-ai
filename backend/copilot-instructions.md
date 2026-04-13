@@ -1,8 +1,13 @@
+<!--
+Backend-specific coding standards for Python 3.12 + FastAPI + SQLAlchemy 2.0 + Pydantic v2.
+Use alongside shared standards: SOLID, Clean Code, Git, Security in `.github/copilot-instructions.md`.
+Key: Type safety enforced (ANN, mypy strict). All code in CI blocks merge on violations (ruff, mypy, bandit, pytest).
+-->
+
 # Backend Copilot Instructions
 
 > Python 3.12 · FastAPI · SQLAlchemy 2.0 · Pydantic v2
->
-> See also: shared standards in [`.github/copilot-instructions.md`](../.github/copilot-instructions.md) (SOLID, Clean Code, Git, Security)
+> See: shared standards in [`.github/copilot-instructions.md`](../.github/copilot-instructions.md)
 
 ## Build & Run
 
@@ -84,35 +89,31 @@ Enforced by ruff, mypy, bandit, and CI. All code must comply — CI blocks merge
 - Database sessions must be obtained via the `get_db` dependency — never instantiate sessions manually.
 - Use lifespan context managers for startup/shutdown — not the deprecated `on_event`.
 
-### Design for Testability (Michael Feathers)
+### Design for Testability
 
-- Dependencies must be **injected**, not hardcoded — use FastAPI `Depends`, never instantiate services/sessions inline.
-- Side effects (DB, API calls, file I/O) must be isolated behind **seams** — abstractions/interfaces that can be swapped in tests (e.g., `AIProvider` base class, `get_db` dependency override).
-- No hidden state or global mutable state — use `settings` singleton for config, DI for everything else.
-- Functions must be **pure** where possible — same input produces same output, no side effects.
-- Complex logic must be extracted into small, independently testable units — not buried inside route handlers.
-- New code must not be "legacy on arrival" — every new code path must have a test.
+- Inject dependencies; never hardcode (use FastAPI `Depends`)
+- Isolate side effects behind seams (DB, API calls, file I/O) with abstractions
+- No hidden state; use `settings` singleton for config
+- Pure functions where possible; extract complex logic into small, independently testable units
+- Every new code path must have a test
 
-### TDD Compliance (Kent Beck)
+### TDD Compliance
 
-- Tests should be written before or alongside production code: **Red → Green → Refactor**.
-- Every new or changed function must have a corresponding unit test.
-- Tests must follow the **AAA pattern**: Arrange → Act → Assert.
-- Test names must describe *what* is tested and the *expected outcome*: `test_create_item_returns_201_with_valid_payload`.
-- Code coverage must meet the team threshold (target: 80%+).
+- Red → Green → Refactor: write tests before/alongside code
+- AAA pattern: Arrange → Act → Assert
+- Test names describe what and expected outcome: `test_create_item_returns_201_with_valid_payload`
+- Target coverage: 80%+
 
-### Test Pyramid (Martin Fowler)
+### Test Pyramid
 
-- **Unit tests (base)** — fast, isolated, cover all logic branches. Mock DB sessions and external services.
-- **Integration tests (middle)** — verify modules work together. Use the in-memory SQLite test DB with `conftest.py` fixtures.
-- **E2E tests (top)** — minimal, cover critical user journeys only. Do not over-invest here.
-- No inverted pyramid — if you have more slow integration tests than fast unit tests, refactor.
-- Mocks/stubs at the unit level, real dependencies (test DB) at the integration level.
+- **Unit tests**: fast, isolated, mock DB/services
+- **Integration tests**: test together with test DB + fixtures
+- **E2E tests**: minimal, critical paths only
+- No inverted pyramid; many fast unit tests at base
 
-### The Beyoncé Rule (Google)
+### The Beyoncé Rule
 
-- *If you liked it, you should have put a test on it.* Any behavior you rely on must be covered by a test.
-- Tests must be **deterministic** — no flaky dependencies on time, network, order, or external services.
+- If you relied on it, test it. Tests must be deterministic (no flaky time/network/order dependencies).
 
 ### Testing Standards
 
@@ -147,54 +148,53 @@ Enforced by ruff, mypy, bandit, and CI. All code must comply — CI blocks merge
 
 ### Dependency Injection
 
-- Define reusable `Annotated` type aliases at the top of route files.
-- Compose dependencies — build complex ones from simple ones.
-- Never store mutable state in module-level variables — use `settings` or the DI system.
+- Use `Annotated` type aliases at top of route files (`DbSession = Annotated[AsyncSession, Depends(get_db)]`)
+- Compose dependencies from simple ones; never hardcode instantiation
+- Never store mutable state in module-level variables
 
 ### Performance
 
-- No N+1 queries — use `selectinload` / `joinedload` for relationships.
-- Use pagination for all list endpoints — never return unbounded result sets.
-- Avoid unnecessary loops over large collections — use SQL aggregations where possible.
-- No resource leaks — ensure async sessions, connections, and file handles are properly closed.
-- Consider caching for expensive or frequently-repeated queries.
+- No N+1 queries; use `selectinload` / `joinedload` on relationships
+- Paginate all list endpoints
+- Use SQL aggregations instead of loops
+- Close all resources (sessions, connections, files)
+- Cache expensive/repeated queries
 
 ### Code Reuse
 
-- Before writing new code, check if existing services/utilities already provide the functionality.
-- Do not duplicate logic that exists in `app/services/`.
-- Verify library APIs actually exist — do not use non-existent function signatures.
+- Check existing services/utilities before writing new code
+- Never duplicate logic in `app/services/`
+- Verify library APIs exist; don't use non-existent signatures
 
 ### Error Handling & Resilience
 
-- Use `tenacity` for retry logic with exponential backoff on external API calls (e.g., AI providers).
-- Set timeouts on all external HTTP calls (`httpx` timeout parameter) — never allow unbounded waits.
-- Implement circuit breaker pattern for AI provider calls — fail fast when a provider is down.
-- Use dead letter patterns for failed async jobs or messages that cannot be processed.
-- Log all caught exceptions with full context (`structlog` bindings) before re-raising or returning error responses.
-- Never use bare `except:` — always catch specific exception types.
-- Graceful degradation: if an AI provider fails, return an appropriate error response — don't crash the app.
+- Use `tenacity` for retry logic with exponential backoff on external calls
+- Set timeouts on all external HTTP calls; never allow unbounded waits
+- Circuit breaker pattern for AI provider calls (fail fast)
+- Dead letter patterns for failed async jobs
+- Log all exceptions with context before re-raising
+- Never bare `except:`; catch specific types only
+- Graceful degradation: fail cleanly, return proper error responses
 
 ### API Design
 
-- All endpoints under `/api/v1/` — version prefix required. See also: shared standards in `.github/copilot-instructions.md`.
-- Use OpenAPI/Swagger auto-generated docs (FastAPI provides this by default at `/docs`).
-- Implement pagination for all list endpoints using `limit`/`offset` or cursor-based patterns.
-- Return consistent error format: `{"detail": "message"}` for all error responses.
-- Use appropriate HTTP status codes: `200` OK, `201` Created, `204` No Content, `400` Bad Request, `404` Not Found, `422` Validation Error, `500` Internal Server Error.
-- Idempotency: `POST` endpoints that create resources should handle duplicate submissions gracefully.
-- Rate limiting should be considered for public-facing endpoints.
+- All endpoints under `/api/v1/` (version prefix required)
+- OpenAPI/Swagger auto-generated at `/docs`
+- Paginate all list endpoints with `limit`/`offset` or cursor
+- Consistent error format: `{"detail": "message"}` for all errors
+- HTTP status codes: 200 OK, 201 Created, 204 No Content, 400 Bad Request, 404 Not Found, 422 Validation Error, 500 Internal Server Error
+- Idempotency: `POST` endpoints handle duplicate submissions gracefully
+- Rate limiting for public endpoints
 
 ### Database & Data Integrity
 
-- All migrations must have both `upgrade()` and `downgrade()` functions — no irreversible migrations.
-- Test migrations against a staging/test database before applying to production.
-- Add database indexes for columns used in `WHERE` clauses and `JOIN` conditions.
-- Use `selectinload`/`joinedload` to avoid N+1 queries on relationships.
-- Wrap multi-step operations in transactions (`get_db` dependency handles commit/rollback).
-- Schema changes must be backward-compatible: use the expand-then-contract pattern.
-- Never delete columns/tables immediately — deprecate first, remove in the next release.
-- Sensitive data (passwords, tokens) must be hashed/encrypted before storage.
+- Migrations: both `upgrade()` and `downgrade()` functions; test before production
+- Index columns used in WHERE/JOIN
+- Use `selectinload`/`joinedload` to avoid N+1 queries
+- Wrap multi-step ops in transactions; `get_db` handles commit/rollback
+- Schema changes: backward-compatible (expand-then-contract)
+- Never delete columns/tables immediately; deprecate first
+- Hash/encrypt sensitive data (passwords, tokens) before storage
 
 ### Data Privacy & Compliance
 
@@ -236,13 +236,13 @@ Rules:
 - Prefer well-maintained libraries with active communities.
 - Pin major versions, allow minor/patch updates: `fastapi>=0.100,<1.0`.
 
-### SOLID in Practice (Python/FastAPI)
+### SOLID in Practice
 
-- **SRP**: Routes handle HTTP only (parse request, call service, return response). Services handle business logic. Models define data structure. Never mix concerns — a route should not contain SQL queries or business rules.
-- **OCP**: Use the `AIProvider` abstract base class pattern — add new providers by creating new classes, not modifying existing ones. Use strategy pattern via dependency injection for swappable behaviors.
-- **LSP**: All `AIProvider` subclasses must implement the full `stream_chat` contract. If a subclass can't support an operation, raise `NotImplementedError` with a clear message — never silently return wrong data.
-- **ISP**: Keep Pydantic schemas focused — split `XxxCreate`, `XxxUpdate`, `XxxResponse` instead of one monolithic model. Route dependencies should only require what they use.
-- **DIP**: Depend on `AIProvider` ABC, not `OpenAIProvider` directly. Use FastAPI `Depends()` to inject `AsyncSession`, services, and config — never import and instantiate directly.
+- **SRP**: Routes handle HTTP; services handle logic; models define data. Never mix.
+- **OCP**: `AIProvider` ABC; add providers via new classes, not modifying existing
+- **LSP**: All ABC subclasses implement full contract; raise `NotImplementedError` if unsupported
+- **ISP**: Split schemas (`Create`, `Update`, `Response`); route deps require only what they use
+- **DIP**: Depend on abstractions (ABC), not concrete classes; inject via `Depends()`
 
 ### Security (OWASP for Python)
 
@@ -257,46 +257,30 @@ Rules:
 
 ### Internationalization (i18n)
 
-- API error messages should use error codes (not localized strings) — let the client handle translation.
-- Accept `Accept-Language` header for content negotiation where applicable.
-- Store all timestamps as UTC in the database — use `datetime.datetime.now(datetime.UTC)`, never `datetime.now()`.
-- Use `babel` or `gettext` for server-side string localization if needed (e.g., email templates).
-- Number and currency formatting should respect locale when generating reports or exports.
+- Use error codes (not localized strings); let client translate
+- Accept `Accept-Language` header for content negotiation
+- All timestamps UTC: `datetime.now(datetime.UTC)`, never `datetime.now()`
+- Use `babel`/`gettext` for server-side strings if needed
+- Respect locale for numbers/currency in exports
 
 ### Deployment
 
-- Use multi-stage Docker builds: separate build stage (install deps) from runtime stage (copy app only).
-- Run `uvicorn` with `--workers` in production (not `--reload`) — worker count = `2 * CPU cores + 1`.
-- Configure health check at `/health` that verifies DB connectivity and returns `200` or `503`.
-- Use `lifespan` context manager for startup (DB pool, connections) and shutdown (cleanup, drain) — not deprecated `@app.on_event`.
-- Environment variables for all config: `DATABASE_URL`, `SECRET_KEY`, `CORS_ORIGINS`, `LOG_LEVEL` — never hardcode.
-- Pin Python version in `Dockerfile` and `pyproject.toml` (`requires-python = ">=3.12"`).
-- Use `.dockerignore` to exclude tests, docs, `.git`, `__pycache__`, `.env` from image.
-- Graceful shutdown: handle `SIGTERM` — finish in-flight requests before exiting.
+- Multi-stage Docker: build stage (install deps) → runtime stage (copy app)
+- Production: `uvicorn --workers N` (where N = 2 * CPU cores + 1), no `--reload`
+- Health check at `/health`: verify DB connectivity, return 200/503
+- Use `lifespan` context manager for startup/shutdown
+- All config via env vars: `DATABASE_URL`, `SECRET_KEY`, `CORS_ORIGINS`, `LOG_LEVEL`
+- Pin Python version in Dockerfile + `pyproject.toml`
+- Use `.dockerignore` to exclude tests, docs, `.git`, `__pycache__`, `.env`
+- Graceful shutdown: finish in-flight requests before exit
 
 ### Documentation
 
-- Use Google-style docstrings for all public functions, classes, and modules.
-- Example:
-  ```python
-  async def create_item(db: AsyncSession, payload: ItemCreate) -> Item:
-      """Create a new item in the database.
-
-      Args:
-          db: Async database session.
-          payload: Validated item creation data.
-
-      Returns:
-          The newly created Item with generated ID.
-
-      Raises:
-          HTTPException: If item with same name already exists.
-      """
-  ```
-- Enrich FastAPI endpoints with `summary`, `description`, and `response_description` parameters for better OpenAPI docs.
-- Add `example` values in Pydantic `Field()` definitions — these appear in Swagger UI.
-- Module-level docstrings for non-obvious modules — explain purpose and key abstractions.
-- Keep README and `copilot-instructions.md` in sync with actual architecture and commands.
+- Google-style docstrings for public functions, classes, modules
+- Enrich endpoints with `summary`, `description`, `response_description` for OpenAPI
+- Add `example` values in Pydantic `Field()` definitions
+- Module-level docstrings explaining purpose for non-obvious modules
+- Keep README + `copilot-instructions.md` in sync with architecture
 
 ### Developer Experience (DX)
 

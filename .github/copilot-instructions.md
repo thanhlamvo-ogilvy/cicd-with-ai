@@ -1,8 +1,11 @@
-# Copilot Instructions
+<!--
+Purpose: Shared coding standards, Git workflow, CI/CD practices, and AI persona rules.
+Scope: All workspaces (root, backend/, frontend/).
+Key: Git commit format is mandatory; personas guide AI behavior per file path.
+Workspace-specific: Backend and frontend files override/extend these standards.
+-->
 
-> Informed by: Clean Code, SOLID, TDD, Test Pyramid, Working Effectively with Legacy Code,
-> Continuous Delivery, Google Engineering Practices, Release It!, OWASP Top 10, 12-Factor App,
-> WCAG 2.1 AA, REST API Design, Site Reliability Engineering, Team Topologies
+# Copilot Instructions
 
 ## Project Structure
 
@@ -30,26 +33,25 @@ npm run dev                          # http://localhost:5173
 docker compose up --build
 ```
 
-## Clean Code Principles (Uncle Bob)
+## Clean Code Principles
 
-These apply to **all code** in every language:
+Apply to **all code** in every language. Key rules:
+- Intention-revealing names; single-letter names forbidden outside tiny scopes
+- Small functions (≤30 lines), single responsibility, DRY, no dead code
+- Guard clauses over nesting; refactor nested code >3 levels
+- Boy Scout Rule — leave code cleaner than found
 
-- **Intention-revealing names** — variables, functions, and classes must clearly communicate their purpose. No abbreviations or single-letter names outside tiny scopes.
-- **Small functions that do one thing** — each function should have a single responsibility. If you need a comment to explain a block, extract it into a named function.
-- **DRY (Don't Repeat Yourself)** — no unnecessary duplication. Extract shared logic into utilities or services.
-- **No dead code** — remove unused variables, imports, functions, and debugging artifacts before committing.
-- **No code smells** — long methods (>30 lines), deep nesting (>3 levels), god classes, and feature envy must be refactored.
-- **Boy Scout Rule** — leave the code cleaner than you found it.
+See [Clean Code by Robert C. Martin](https://www.oreilly.com/library/view/clean-code-a/9780136083238/) for detailed guidance.
 
-## SOLID Principles (Uncle Bob)
+## SOLID Principles
 
-All code — backend and frontend — must follow SOLID:
+**S** — Single Responsibility: one reason to change (routes=HTTP, services=logic, components=UI)  
+**O** — Open/Closed: extend via abstraction, not modification (e.g., `AIProvider` ABC)  
+**L** — Liskov Substitution: subtypes interchangeable (honor contracts like `stream_chat`)  
+**I** — Interface Segregation: focused interfaces/props (split if >5–6 items)  
+**D** — Dependency Inversion: depend on abstractions; inject dependencies (never hardcode)
 
-- **S — Single Responsibility**: each class/module/component has one reason to change. A route handles HTTP, a service handles business logic, a component renders UI.
-- **O — Open/Closed**: code should be extendable without modifying existing code. Use abstractions (e.g., `AIProvider` base class, React composition).
-- **L — Liskov Substitution**: subtypes must be interchangeable with base types. Any `AIProvider` implementation must honour the `stream_chat` contract.
-- **I — Interface Segregation**: no forced dependency on unused interfaces. Keep props interfaces focused; split large service classes.
-- **D — Dependency Inversion**: depend on abstractions, not concretions. Inject dependencies (FastAPI `Depends`, React props/context) — never hardcode them.
+Workspace-specific guidance: backend/copilot-instructions.md, frontend/copilot-instructions.md
 
 ## Version Control & Git Workflow
 
@@ -88,214 +90,194 @@ All commit messages must follow this structured release notes format:
 
 ## Testability & Testing
 
-- **Design for testability** — inject dependencies, isolate side effects, prefer pure functions.
-- **TDD cycle** — Red → Green → Refactor. Write a failing test first, make it pass, then clean up.
-- **Test Pyramid** — many unit tests (base), fewer integration tests (middle), minimal E2E tests (top).
-- **Beyoncé Rule** — if you liked it, you should have put a test on it. Untested code is untrustworthy code.
-- Edge cases must be handled: nulls, empty inputs, boundary values, zero.
-- No race conditions or concurrency issues — especially in async code.
-- Tests must be deterministic, isolated, and fast — no shared mutable state between tests.
-- Mock external services at integration boundaries, not internal implementation details.
+- **TDD cycle**: Red → Green → Refactor. Write failing test first.
+- **Test Pyramid**: Many unit tests (base), fewer integration tests (middle), minimal E2E tests (top).
+- **Beyoncé Rule**: "If you liked it, put a test on it." Untested code is untrustworthy.
+- **Deterministic**: No flaky dependencies on time, network, or order.
+- **Isolated**: Each test independent; no shared mutable state.
+- **Fast**: Unit tests < 1s; integration tests < 5s.
+- Edge cases: nulls, empty inputs, boundary values, zero.
+- Mock external services at integration boundaries only.
 
 ## Error Handling & Resilience
 
-- No bare `catch` / `except` blocks — always handle specific error types or re-raise.
+- No bare `catch`/`except` — always handle specific error types or re-raise.
 - Never swallow errors silently — log, propagate, or handle explicitly.
-- Use circuit breakers for calls to external services to prevent cascade failures.
-- Retries must use exponential backoff with jitter — never retry in a tight loop.
-- Set explicit timeouts on all network calls, database queries, and external integrations.
-- Use bulkhead patterns to isolate failures and prevent one bad component from taking down the system.
-- Degrade gracefully — return cached data or a sensible fallback when a dependency is unavailable.
-- Route unprocessable messages to dead letter queues for later inspection.
+- Circuit breakers: fail fast on repeated external service failures.
+- Retries: exponential backoff with jitter; never tight loops.
+- Timeouts: explicit on all network, DB, and external calls.
+- Bulkhead pattern: isolate failures; prevent cascade failures.
+- Graceful degradation: use cached data or fallback when dependency unavailable.
 
 ## API Design
 
-- Follow RESTful conventions — use nouns for resources, HTTP verbs for actions, proper status codes.
-- Version APIs explicitly (URL path `/v1/` or header) — never break existing clients silently.
-- Validate request schemas at the boundary — reject malformed input early with clear error messages.
-- Support pagination for all list endpoints (`limit`/`offset` or cursor-based).
-- Implement rate limiting to protect services from abuse and ensure fair usage.
-- Design mutating endpoints to be idempotent where possible — safe to retry on failure.
-- Use a consistent error response format across all endpoints (e.g., `{ "error": { "code", "message", "details" } }`).
-- Maintain OpenAPI/Swagger documentation — auto-generate from code where possible.
+- RESTful: nouns for resources, HTTP verbs for actions, correct status codes
+- Versioning: explicit (`/v1/` path or header), never silent breaking changes
+- Validation: reject malformed input at boundary with clear messages
+- Pagination: all list endpoints use `limit`/`offset` or cursor
+- Rate limiting: protect endpoints from abuse
+- Idempotent mutations: safe to retry
+- Consistent error format: `{"detail": "message"}`
+- Documentation: auto-generate OpenAPI/Swagger from code
 
 ## Database & Data Integrity
 
-- Migrations must be safe, reversible, and backward-compatible — no destructive changes without a migration plan.
-- Add indexes for columns used in `WHERE`, `JOIN`, and `ORDER BY` — verify with query plans.
-- Eliminate N+1 query patterns — use eager loading, joins, or batch fetching.
-- Wrap multi-step mutations in transactions — ensure atomicity and rollback on failure.
-- Understand and choose the right consistency model (strong vs. eventual) for each use case.
-- Schema changes must not cause data loss — add columns as nullable, backfill, then enforce constraints.
-- Encrypt sensitive data at rest and in transit — use application-level encryption for PII where appropriate.
+See workspace-specific files for implementation details:
+- Migrations: safe, reversible, backward-compatible
+- Indexes: on WHERE, JOIN, ORDER BY columns
+- N+1 patterns: use eager loading, joins, batch fetching
+- Transactions: wrap multi-step operations
+- Schema changes: backward-compatible (expand-contract pattern)
+- PII: encrypt at rest and in transit
 
 ## Security (Cross-Cutting)
 
-- Never hardcode secrets, API keys, passwords, or tokens — load from environment variables or a secrets manager.
-- Rotate secrets on a defined schedule and immediately on suspected compromise.
-- User input must always be validated and sanitized before use — defend against OWASP Top 10 (injection, XSS, CSRF, SSRF, broken auth, etc.).
-- Authentication/authorization checks must be in place for protected endpoints — follow least privilege principle.
-- Never use `eval()`, `exec()`, or similar dynamic execution in any language.
-- Set security headers: CORS (explicit origins, never `*` in production), CSP, HSTS, X-Content-Type-Options.
-- Dependencies must be free of known vulnerabilities — scan before adding and on a regular schedule.
-- No path traversal, SSRF, or injection vulnerabilities.
-- Never expose internal details (stack traces, DB errors, file paths) in production error responses.
-- Never log sensitive data: passwords, tokens, secrets, PII.
-- Apply least privilege to service accounts, IAM roles, and database credentials.
+- No hardcoded secrets (use env vars or secrets manager); rotate on schedule
+- Validate & sanitize all user input; defend against OWASP Top 10
+- Auth/authz checks on protected endpoints; follow least privilege
+- Never use `eval()`, `exec()`, dynamic code execution
+- Security headers: CORS (explicit origins, never `*`), CSP, HSTS, X-Content-Type-Options
+- Dependencies: free of known CVEs; scan before adding
+- No path traversal, SSRF, injection vulnerabilities
+- Never expose internal details (stack traces, DB errors, paths) in prod errors
+- Never log: passwords, tokens, secrets, PII
+
+OWASP enforcement: see workspace-specific files
 
 ## Data Privacy & Compliance
 
-- Identify and classify PII — handle it with appropriate safeguards throughout the data lifecycle.
-- Collect only necessary data and obtain explicit user consent where required.
-- Support right to deletion (GDPR/CCPA) — ensure PII can be purged on request.
-- Define and enforce data retention policies — do not keep data longer than necessary.
-- Exclude PII from logs, error messages, and monitoring dashboards.
-- Encrypt PII at rest and in transit — use field-level encryption where appropriate.
-- Review third-party data sharing agreements — never send PII to external services without authorization.
+- Identify & classify PII; handle with safeguards throughout lifecycle
+- Collect only necessary data; obtain explicit consent
+- Support right to deletion (GDPR/CCPA); enable purge on request
+- Data retention policies: do not keep longer than necessary
+- Exclude PII from logs, errors, monitoring dashboards
+- Encrypt PII at rest and in transit
+- Review third-party data sharing agreements before authorization
 
 ## Performance (Cross-Cutting)
 
-- No N+1 queries or unnecessary loops — profile and optimize hot paths.
-- Large data sets must be handled efficiently (pagination, streaming, virtual scrolling).
-- No memory or resource leaks — clean up connections, file handles, and subscriptions.
-- Caching must be considered where appropriate — define clear invalidation strategies (TTL, event-based, write-through).
-- Use lazy loading for non-critical resources — defer expensive operations until needed.
-- Define SLAs/SLOs for critical paths — measure and alert on latency, throughput, and error rate.
-- Run load tests before major releases — validate that the system handles expected traffic.
-- Minimize bundle size and network payloads — compress, tree-shake, and code-split.
+- No N+1 queries; no unnecessary loops; profile hot paths
+- Large data sets: use pagination, streaming, virtual scrolling
+- No resource leaks: clean up connections, file handles, subscriptions
+- Caching: define clear invalidation (TTL, event-based, write-through)
+- Lazy loading: defer expensive operations until needed
+- SLAs/SLOs: measure latency, throughput, error rate; alert on breaches
+- Load tests: validate system handles expected traffic before release
+- Bundle size: compress, tree-shake, code-split
 
 ## Accessibility (a11y)
 
-- Use semantic HTML elements (`nav`, `main`, `article`, `button`) — avoid `div`/`span` soup.
-- Provide meaningful `alt` text for all images — decorative images use `alt=""`.
-- All interactive elements must be keyboard-navigable — no mouse-only interactions.
-- Manage focus correctly — set focus on route changes, modals, and dynamic content updates.
-- Meet WCAG 2.1 AA color contrast ratios (4.5:1 for text, 3:1 for large text/UI components).
-- Use ARIA attributes only when semantic HTML is insufficient — prefer native elements.
-- Test with screen readers (VoiceOver, NVDA) as part of the development workflow.
-- Every form input must have an associated `<label>` — never rely on placeholder text alone.
+- Semantic HTML (`nav`, `main`, `button`); avoid `div`/`span` soup
+- Meaningful `alt` text for images (decorative: `alt=""`)
+- Keyboard-navigable interactive elements; no mouse-only interactions
+- Manage focus: set on route changes, modals, dynamic content
+- Color contrast: WCAG 2.1 AA (4.5:1 text, 3:1 large text)
+- ARIA only when semantic HTML insufficient; prefer native elements
+- Screen reader testing (VoiceOver, NVDA) in dev workflow
+- Form inputs: associated `<label>` (never rely on placeholder alone)
 
 ## Internationalization (i18n)
 
-- No hardcoded user-facing strings — extract all text to translation files or i18n keys.
-- Use locale-aware formatting for dates, numbers, currencies, and units.
-- Support RTL (right-to-left) layouts — use logical CSS properties (`margin-inline-start` over `margin-left`).
-- Encode all text as UTF-8 — never assume ASCII.
-- Handle pluralization rules correctly — different languages have different plural forms.
-- Allow for text expansion (translations can be 30–50% longer) — avoid fixed-width layouts for text.
-- Store and transmit timestamps in UTC — convert to local timezone only at display time.
+- No hardcoded strings; extract to translation files or i18n keys
+- Locale-aware formatting: dates, numbers, currencies, units
+- RTL support: use logical CSS (`margin-inline-start` over `margin-left`)
+- UTF-8 encoding (never ASCII)
+- Pluralization: handle language-specific plural forms
+- Text expansion: allow 30–50% longer translations; avoid fixed-width text layouts
+- Timestamps: store/transmit UTC; convert to local TZ only at display
 
 ## Deployment (Cross-Cutting)
 
-- Follow 12-Factor App principles — config in env vars, stateless processes, disposable containers, port binding.
-- Infrastructure as Code (IaC) — all infrastructure must be defined in version-controlled templates (Terraform, Bicep, CloudFormation).
-- Adopt GitOps — deployments triggered by merges to a deployment branch, not manual steps.
-- Database migrations must be safe and reversible — run migrations separately from application deploys.
-- Feature flags should be used for risky rollouts — decouple deployment from release.
-- Logging and monitoring must be added for new code paths.
-- Rollback plan must be considered for every deployment.
-- Environments (dev, staging, prod) must be as similar as possible — minimize "works on my machine" issues.
+- 12-Factor App: env vars for config, stateless processes, disposable containers, port binding
+- IaC: all infrastructure in version-controlled templates (Terraform, Bicep, CloudFormation)
+- GitOps: deployments triggered by merges, not manual steps
+- Migrations: safe, reversible, run separately from app deploy
+- Feature flags: use for risky rollouts; decouple deployment from release
+- Logging & monitoring: add for new code paths
+- Rollback plan: consider for every deployment
+- Parity: dev/staging/prod as similar as possible
 
 ## Release Strategy
 
-- Verify release readiness — all CI checks pass, documentation updated, stakeholders notified.
-- Use safe release patterns: feature flags, blue-green deployments, canary releases, or rolling updates.
-- Never release on Fridays or before holidays without an on-call plan.
-- Rollback procedures must be tested and documented — know how to revert within minutes.
-- Monitor key metrics (error rate, latency, resource usage) closely after every release.
-- Tag releases in git — maintain a CHANGELOG linking releases to their changes.
+- Verify readiness: CI passes, docs updated, stakeholders notified
+- Safe patterns: feature flags, blue-green, canary, rolling updates
+- Never release Fridays/holidays without on-call plan
+- Rollback: tested, documented, revert within minutes
+- Monitor: error rate, latency, resource usage post-release
+- Tag releases; maintain CHANGELOG linking changes
 
 ## Observability
 
-- Use structured logging (JSON) — include timestamp, level, service name, and request context.
-- Follow standard log levels: DEBUG for dev, INFO for normal operations, WARN for recoverable issues, ERROR for failures.
-- Attach correlation IDs to every request — propagate across service boundaries for distributed tracing.
-- Track RED metrics (Rate, Errors, Duration) for services and USE metrics (Utilization, Saturation, Errors) for resources.
-- Implement distributed tracing (OpenTelemetry) — trace requests across service boundaries.
-- Set up actionable alerts — alert on symptoms (error rate spike), not causes. Include runbook links in alert notifications.
-- Maintain runbooks for common operational scenarios — keep them up to date.
+- Structured logging (JSON): timestamp, level, service, request context
+- Log levels: DEBUG (dev), INFO (normal), WARN (recoverable), ERROR (failures)
+- Correlation IDs: propagate across service boundaries for tracing
+- RED metrics: Rate, Errors, Duration (services)
+- USE metrics: Utilization, Saturation, Errors (resources)
+- Distributed tracing: OpenTelemetry across boundaries
+- Actionable alerts: on symptoms (error spike), not causes; include runbooks
+- Runbooks: documented, up-to-date operational procedures
 
 ## Dependency Management
 
-- Justify every new dependency — prefer standard library or existing deps over adding new ones.
-- Pin dependency versions in lockfiles — ensure reproducible builds across environments.
-- Check licenses before adding dependencies — ensure compatibility with project licensing.
-- Run vulnerability scans (Dependabot, Snyk, `pip-audit`) on every CI run.
-- Review transitive dependencies — a small direct dep can pull in a large attack surface.
-- Update dependencies regularly — small, frequent updates are safer than large, infrequent ones.
+- Justify every new dep; prefer stdlib or existing deps
+- Pin versions in lockfiles; ensure reproducible builds
+- Check licenses; ensure compatibility
+- Vulnerability scans: Dependabot, Snyk, `pip-audit` on every CI run
+- Review transitive deps; small deps can pull large attack surfaces
+- Update regularly: small, frequent updates safer than large, infrequent
 
 ## Cost & Resource Efficiency
 
-- Cloud resource usage must be proportional to actual needs — avoid over-provisioning.
-- Use auto-scaling where possible — scale down during low-traffic periods.
-- Clean up unused resources: orphaned disks, idle load balancers, unattached IPs, stale environments.
-- Tag cloud resources with team, project, and environment for cost attribution.
-- Include cost impact estimates in PRs that add or change infrastructure.
+- Cloud resources proportional to needs; avoid over-provisioning
+- Auto-scaling: scale down during low-traffic periods
+- Clean up unused: orphaned disks, idle load balancers, stale environments
+- Tag resources: team, project, environment for cost attribution
+- Cost impact estimates in PRs that change infrastructure
 
 ## Developer Experience (DX)
 
-- README must enable a new contributor to run the project locally in under 5 minutes.
-- Support single-command local development (`docker compose up`, `make dev`, or equivalent).
-- New team member onboarding should be documented — link to architecture docs, key contacts, and conventions.
-- Use PR templates to ensure consistent descriptions, testing notes, and review checklists.
-- Maintain a CONTRIBUTING.md with guidelines for code style, branching, testing, and submitting PRs.
+- README: new contributors run locally in <5 minutes
+- Single-command dev: `docker compose up` or equivalent
+- Onboarding docs: architecture, key contacts, conventions
+- PR templates: consistent descriptions, testing notes, checklists
+- CONTRIBUTING.md: code style, branching, testing, submitting PRs
 
 ## Architecture & Design
 
-- Changes must fit existing architecture — don't introduce patterns that conflict with the layered structure.
-- Respect service boundaries — a change should not reach across service/module boundaries without justification.
-- No tight coupling or broken abstractions — components should be replaceable.
-- API contracts must be backward-compatible or properly versioned.
-- PRs should contain a single logical change — flag PRs doing too many things.
-- Create an ADR (Architecture Decision Record) for significant architectural decisions — record context, decision, and consequences.
+- Fit existing architecture; no conflicting patterns
+- Respect service boundaries; no cross-service access without justification
+- No tight coupling; components replaceable
+- API contracts: backward-compatible or properly versioned
+- PRs: single logical change; flag multi-topic PRs
+- ADRs: significant architectural decisions (context, decision, consequences)
 
 ## Documentation & Communication
 
-- PR descriptions must explain *what* changed and *why*.
-- Public APIs or config changes must be documented.
-- Breaking changes must be clearly called out — update CHANGELOG and notify consumers.
-- Maintain a CHANGELOG that links releases to their changes.
-- Create runbooks for operational procedures — deployments, incident response, data recovery.
-- Keep architecture diagrams up to date — they should reflect the current system, not the original design.
+- PR descriptions: explain *what* and *why*
+- Public APIs/config changes: documented
+- Breaking changes: clearly called out; update CHANGELOG, notify consumers
+- CHANGELOG: link releases to changes
+- Runbooks: deployments, incident response, data recovery
+- Architecture diagrams: current, not original design
 
 ## AI Context & Token Efficiency
 
-### Context Files
-- Root `.github/copilot-instructions.md` must stay in sync with project-level conventions.
-- Workspace-level `copilot-instructions.md` files updated when local patterns/APIs change.
-
-### Token-Saving Structure
-- Context files use structured formats (lists, headers) over verbose prose.
-- Context is layered (shared → workspace-specific) so AI loads only what it needs.
-- Use references instead of duplicating content across docs.
-
-### AI Ignore Rules
-- Large auto-generated files (lockfiles, migrations, bundles) should be excluded from AI indexing via `.gitignore` or ignore files.
-- Generated code, vendor directories, and data files should not be indexed.
-
-### Discoverability
-- Directory naming must be clear and consistent.
-- Self-documenting code reduces need for AI to ask clarifying questions.
-
-### Prompt Cache Friendliness
-- Stable context (project info, conventions) separated from volatile content.
-- No unnecessary churn in context files that would invalidate prompt caches.
+- Structured formats (lists, headers) save tokens; minimize prose
+- Layered context: shared (root) → workspace-specific
+- Use references, not duplication across docs
+- Exclude auto-generated files from AI indexing
+- Self-documenting code reduces AI context needs
 
 ## AI Persona Roles
 
-When generating or modifying code, the AI agent must adopt the persona matching the workspace context. Personas are activated based on the file path being edited — not announced in comments or output.
+| Context | Persona | Stack |
+|---------|---------|-------|
+| `backend/` | Senior Python/FastAPI Engineer | Python 3.12, FastAPI, SQLAlchemy, Pydantic, pytest, structlog |
+| `frontend/` | Senior React/TypeScript Engineer | React 19, TypeScript, Vite, Vitest, Playwright |
+| Root/.github/Docker | Senior DevOps/Platform Engineer | GitHub Actions, Docker, 12-Factor App, IaC |
+| Cross-workspace | Senior Full-Stack Engineer | All domains |
 
-| Context | Persona | Expertise | Activates When |
-|---------|---------|-----------|----------------|
-| `backend/` | **Senior Python/FastAPI Engineer** | Python 3.12, async/await, SQLAlchemy 2.0, Pydantic v2, OWASP security, structlog, pytest | Editing files under `backend/` |
-| `frontend/` | **Senior React/TypeScript Engineer** | React 19, TypeScript strict mode, Vite, accessibility (WCAG 2.1 AA), modern CSS, Vitest, Playwright | Editing files under `frontend/` |
-| Root / CI / Docker | **Senior DevOps/Platform Engineer** | GitHub Actions, Docker, CI/CD pipelines, 12-Factor App, infrastructure-as-code, shell scripting | Editing root-level files, `.github/`, `docker-compose.yml`, `Dockerfile` |
-| Cross-cutting | **Senior Full-Stack Engineer** | All of the above — used when a change spans multiple workspaces | Editing files in both `backend/` and `frontend/` in the same task |
-
-Rules:
-- Apply the persona's constraints silently — do not mention the role in generated code or comments.
-- When a task spans workspaces, use the cross-cutting persona but still follow each workspace's specific rules.
-- Persona expertise areas define the knowledge base for code review, suggestions, and error diagnosis.
+Apply constraints silently. Follow workspace-specific rules.
 
 ## CI/CD (Continuous Delivery)
 

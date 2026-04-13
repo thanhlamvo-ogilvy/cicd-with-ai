@@ -1,3 +1,9 @@
+<!--
+Frontend-specific coding standards for React 19 + TypeScript + Vite 6.
+Use alongside shared standards: SOLID, Clean Code, Git, Security in `.github/copilot-instructions.md`.
+Key: Strict TypeScript. All code enforced via ESLint + Prettier in CI; blocks merge on violations.
+-->
+
 # Frontend Copilot Instructions
 
 > React 19 · TypeScript · Vite 6 · ES2020
@@ -89,18 +95,18 @@ src/
 
 ### State Management
 
-- Use React built-in state (`useState`, `useReducer`) — no external state libraries unless complexity demands it.
-- Lift state to the nearest common ancestor — avoid prop drilling beyond 2 levels.
-- For complex state transitions, prefer `useReducer` over multiple `useState` calls.
-- Never mutate state directly — always return new objects/arrays.
+- Use React built-in state (`useState`, `useReducer`)
+- Lift state to nearest common ancestor; limit prop drilling to 2 levels
+- Prefer `useReducer` for complex state transitions
+- Never mutate state directly; return new objects/arrays
 
 ### API & Data Fetching
 
-- All API calls go through `src/services/api.ts` — components never call `fetch` directly.
-- API functions must have explicit return types.
-- Handle errors gracefully — show user-friendly messages, never raw error objects.
-- For streaming (SSE), use async generators (`async function*`) to yield events.
-- Always check `response.ok` before parsing — throw descriptive errors on failure.
+- All API calls in `src/services/api.ts`; components never call `fetch` directly
+- Explicit return types on all API functions
+- Handle errors gracefully with user-friendly messages
+- Streaming (SSE): use async generators (`async function*`)
+- Always check `response.ok` before parsing; throw descriptive errors on failure
 
 ### Error Handling
 
@@ -158,29 +164,29 @@ src/
 
 ### Code Reuse
 
-- Before writing a new component, check if existing components can be composed or extended.
-- Extract repeated patterns into custom hooks or utility functions.
-- Shared types go in `src/types/` — never duplicate type definitions across files.
-- API functions go in `src/services/` — never inline fetch calls in components.
+- Check existing components before creating new ones
+- Extract repeated patterns into custom hooks or utilities
+- Shared types go in `src/types/`
+- API functions go in `src/services/`
 
 ### Internationalization (i18n)
 
-- No hardcoded user-facing strings — all text should be externalized to translation files (e.g., using `react-i18next` or similar).
-- Use locale-aware APIs for date, time, number, and currency formatting (`Intl.DateTimeFormat`, `Intl.NumberFormat`).
-- Consider RTL (right-to-left) layout support in CSS — use logical properties (`margin-inline-start` instead of `margin-left`).
-- Ensure UTF-8 encoding throughout.
-- UI layout must accommodate text expansion (translations can be 30–50% longer than English).
-- Store and transmit times in UTC — display in user's local timezone.
-- Handle pluralization properly — not just "item" vs "items".
+- Externalize all user-facing strings (e.g., `react-i18next`)
+- Use locale-aware APIs: `Intl.DateTimeFormat`, `Intl.NumberFormat`
+- RTL support: use logical CSS (`margin-inline-start` not `margin-left`)
+- UTF-8 encoding everywhere
+- Allow 30-50% text expansion for translations
+- Store/transmit times in UTC; display in local timezone
+- Handle pluralization correctly
 
 ### Data Privacy
 
-- Never store sensitive data (tokens, passwords, PII) in `localStorage` or `sessionStorage` unencrypted.
-- Clear sensitive data from state when user logs out.
-- Do not log PII to the browser console in production.
-- Implement consent UI for data collection where required (cookies, analytics).
-- Ensure forms collecting PII have appropriate `autocomplete` attributes and are served over HTTPS.
-- Do not include PII in analytics events or error tracking payloads.
+- Never store sensitive data unencrypted in storage
+- Clear sensitive data on logout
+- No PII in browser console (production)
+- Implement data collection consent UI
+- Ensure forms with PII have appropriate `autocomplete` attrs, served over HTTPS
+- Exclude PII from analytics/error tracking
 
 #### AI Chat PII Rules
 
@@ -197,13 +203,13 @@ src/
 - Log API call failures with request context (endpoint, status code, duration).
 - Never log sensitive data (tokens, passwords, PII) in client-side logs.
 
-### SOLID in Practice (React/TypeScript)
+### SOLID in Practice
 
-- **SRP**: Components render UI. Hooks manage state and side effects. Services handle API calls. Types define contracts. Never mix — a component should not contain `fetch` calls or complex business logic.
-- **OCP**: Use React composition over modification — extend behavior with wrapper components, render props, or custom hooks instead of adding flags/props to existing components. Example: create `<ScrollableList>` wrapping `<MessageList>` instead of adding `scrollable` prop.
-- **LSP**: Components accepting the same props interface must behave consistently. If `<PrimaryButton>` and `<DangerButton>` both accept `ButtonProps`, they must both handle `onClick`, `disabled`, and `children` identically.
-- **ISP**: Keep prop interfaces focused. Split `ChatBoxProps` into smaller interfaces if it grows beyond 5-6 props. Prefer multiple specific props over a single `options` object. Never force a component to accept props it ignores.
-- **DIP**: Components depend on prop interfaces, not concrete implementations. Services are injected via props or React Context — never import service instances directly in components. Use custom hooks as the abstraction layer between components and services.
+- **SRP**: Components render UI; hooks manage state; services handle API; types define contracts
+- **OCP**: Use composition over modification; extend with wrappers or hooks
+- **LSP**: Components with same props interface behave consistently
+- **ISP**: Keep props interfaces focused; split if >5-6 props
+- **DIP**: Depend on interfaces; inject services via props/Context; never import directly
 
 ### Security
 
@@ -218,55 +224,43 @@ src/
 
 ### Resilience & Error Recovery
 
-- Implement retry logic for failed API calls with exponential backoff — use `AbortController` to cancel in-flight requests on unmount.
-- Show loading states during async operations — never leave the user staring at a blank screen.
-- Display user-friendly error states with retry actions — `"Something went wrong. Try again."` with a button, not a raw error dump.
-- Use React Error Boundaries to catch render errors — show a fallback UI instead of a white screen.
-- Handle network offline gracefully — detect with `navigator.onLine` and show appropriate messaging.
-- Use `AbortController` in `useEffect` cleanup to cancel pending requests when components unmount — prevent state updates on unmounted components.
-- Implement optimistic UI updates for better perceived performance — rollback on server error.
+- Retry failed API calls with exponential backoff; use `AbortController` to cancel on unmount
+- Show loading states during async operations
+- User-friendly error states with retry actions
+- React Error Boundaries for render errors
+- Detect offline with `navigator.onLine`
+- Use `AbortController` cleanup to prevent state updates on unmounted components
+- Optimistic UI updates with server error rollback
 
 ### Dependency Management
 
-- `package-lock.json` must be committed — ensures reproducible builds across environments.
-- Run `npm audit` regularly and in CI — fix or document known vulnerabilities.
-- Prefer established libraries with active maintenance — check npm download trends and GitHub activity before adding.
-- Use tree-shakable imports: `import { debounce } from "lodash-es"` not `import _ from "lodash"`.
-- Review bundle impact before adding a dependency — use `npx bundlephobia <package>` or build analysis.
-- Keep `devDependencies` separate from `dependencies` — dev tools should not ship to production.
-- Do not install packages globally for the project — all deps in `package.json`.
-- Update dependencies regularly: patch/minor updates in automated PRs, major updates reviewed manually.
+- `package-lock.json` committed; ensures reproducible builds
+- Run `npm audit` regularly and in CI
+- Prefer established libraries with active maintenance
+- Tree-shakable imports: `import { debounce } from "lodash-es`
+- Review bundle impact before adding (check bundlephobia)
+- Separate `devDependencies` from `dependencies`
+- All deps in `package.json`; no global installs
+- Regular updates: patch/minor automated, major manual reviews
 
 ### Deployment
 
-- Vite build outputs to `dist/` — this is the only artifact deployed to production.
-- Environment variables must be prefixed with `VITE_` to be available in client code — and remember they are PUBLIC (embedded in bundle).
-- Use `import.meta.env.VITE_*` for environment-specific config — never hardcode API URLs or feature flags.
-- Configure nginx (or equivalent) for SPA routing: serve `index.html` for all routes, let React Router handle client-side routing.
-- Enable gzip/brotli compression in nginx for static assets — significantly reduces bundle transfer size.
-- Set long cache headers for hashed assets (`assets/index-[hash].js`) — Vite handles cache busting via content hashing.
-- Use `.dockerignore` to exclude `node_modules/`, `.git/`, and source files from the Docker image — only copy `dist/` and nginx config.
-- Source maps: generate for staging (debugging), disable for production (security).
+- Build outputs to `dist/`; this is the only artifact deployed
+- Env vars prefixed `VITE_` available in client code (PUBLIC; embedded in bundle)
+- Use `import.meta.env.VITE_*` for env-specific config
+- nginx: SPA routing (serve `index.html` for all routes)
+- gzip/brotli compression in nginx
+- Long cache headers for hashed assets (`assets/index-[hash].js`)
+- `.dockerignore`: exclude `node_modules/`, `.git/`, source; copy only `dist/` + nginx config
+- Source maps: enable staging, disable production
 
 ### Documentation
 
-- Use JSDoc comments for complex utility functions, custom hooks, and non-obvious logic.
-- Example for hooks:
-  ```typescript
-  /**
-   * Manages chat message state and streaming from the backend.
-   *
-   * @param conversationId - Active conversation ID, or null for new chat.
-   * @returns Chat state and actions (messages, sendMessage, isStreaming).
-   *
-   * @example
-   * const { messages, sendMessage, isStreaming } = useChat(conversationId);
-   */
-  ```
-- Document component props in the interface definition — add JSDoc to complex or non-obvious props.
-- Use descriptive file-level comments only for non-obvious modules — the file name and exports should be self-documenting.
-- Keep `README.md` and `copilot-instructions.md` in sync with actual architecture and commands.
-- Add inline comments for workarounds, browser quirks, or non-obvious behavior — explain *why*, not *what*.
+- JSDoc for complex utilities, custom hooks, non-obvious logic
+- Document props in interface definition
+- File-level comments only for non-obvious modules
+- Keep README + `copilot-instructions.md` in sync
+- Inline comments explain *why*, not *what*; workarounds and browser quirks
 
 ### Developer Experience (DX)
 
