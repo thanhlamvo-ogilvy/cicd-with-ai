@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# Run Ruff format check on backend code
+cd backend && ruff format app/ --silent || exit 1
