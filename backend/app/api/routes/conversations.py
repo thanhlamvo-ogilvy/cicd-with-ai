@@ -1,4 +1,3 @@
-
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -29,9 +28,7 @@ async def list_conversations(
 
 
 @router.post("", response_model=ConversationResponse, status_code=201)
-async def create_conversation(
-    payload: ConversationCreate, db: DbSession
-) -> ConversationResponse:
+async def create_conversation(payload: ConversationCreate, db: DbSession) -> ConversationResponse:
     from app.models.conversation import Conversation
 
     conversation = Conversation(
@@ -46,9 +43,7 @@ async def create_conversation(
 
 
 @router.get("/{conversation_id}", response_model=ConversationDetailResponse)
-async def get_conversation(
-    conversation_id: str, db: DbSession
-) -> ConversationDetailResponse:
+async def get_conversation(conversation_id: str, db: DbSession) -> ConversationDetailResponse:
     conversation = await chat_service.get_conversation(db, conversation_id)
     return ConversationDetailResponse.model_validate(conversation)
 

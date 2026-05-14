@@ -28,9 +28,7 @@ def get_provider(provider_name: str) -> AIProvider:
         api_key = settings.openai_api_key
         base_url = settings.openai_base_url
         if not api_key and not base_url:
-            raise ProviderConfigurationError(
-                "Provider 'openai' is not configured"
-            )
+            raise ProviderConfigurationError("Provider 'openai' is not configured")
         return OpenAIProvider(api_key=api_key, base_url=base_url or None)
 
     providers: dict[str, tuple[str, type[AIProvider]]] = {
@@ -43,16 +41,12 @@ def get_provider(provider_name: str) -> AIProvider:
 
     api_key, provider_cls = providers[provider_name]
     if not api_key:
-        raise ProviderConfigurationError(
-            f"Provider '{provider_name}' is not configured"
-        )
+        raise ProviderConfigurationError(f"Provider '{provider_name}' is not configured")
 
     return provider_cls(api_key)
 
 
-async def get_or_create_conversation(
-    db: AsyncSession, request: ChatRequest
-) -> Conversation:
+async def get_or_create_conversation(db: AsyncSession, request: ChatRequest) -> Conversation:
     """Get existing conversation or create a new one."""
     if request.conversation_id:
         result = await db.execute(
@@ -75,9 +69,7 @@ async def get_or_create_conversation(
     return conversation
 
 
-async def save_message(
-    db: AsyncSession, conversation_id: str, role: str, content: str
-) -> Message:
+async def save_message(db: AsyncSession, conversation_id: str, role: str, content: str) -> Message:
     """Save a message to the database."""
     message = Message(conversation_id=conversation_id, role=role, content=content)
     db.add(message)
@@ -86,9 +78,7 @@ async def save_message(
     return message
 
 
-async def get_conversation_messages(
-    db: AsyncSession, conversation_id: str
-) -> list[ChatMessage]:
+async def get_conversation_messages(db: AsyncSession, conversation_id: str) -> list[ChatMessage]:
     """Load all messages for a conversation as ChatMessage objects."""
     result = await db.execute(
         select(Message)
@@ -139,10 +129,7 @@ async def list_conversations(
     total = count_result.scalar_one()
 
     result = await db.execute(
-        select(Conversation)
-        .order_by(Conversation.updated_at.desc())
-        .offset(skip)
-        .limit(limit)
+        select(Conversation).order_by(Conversation.updated_at.desc()).offset(skip).limit(limit)
     )
     return list(result.scalars().all()), total
 

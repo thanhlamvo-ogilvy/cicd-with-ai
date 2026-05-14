@@ -1,17 +1,4 @@
-# Coding Standards Quick Reference
-
-## Purpose
-
-Developer-facing quick-reference guide for coding standards, separate from the review-focused checklist, providing scannable Do/Don't examples for active development.
-
-## Requirements
-
-### Requirement: Quick-reference document exists
-The project SHALL have a `CODING_STANDARDS.md` file at the repository root that provides a scannable, concise reference for coding standards applicable during active development.
-
-#### Scenario: Developer consults standards during coding
-- **WHEN** a developer opens `CODING_STANDARDS.md`
-- **THEN** they find a concise document (under 300 lines) organized by topic with code snippets showing correct and incorrect patterns
+## MODIFIED Requirements
 
 ### Requirement: Backend standards section
 The quick-reference SHALL include a backend section covering: naming conventions, function size limits, type annotation requirements, async patterns, error handling patterns, FastAPI endpoint patterns, and testing patterns — each with a brief "Do / Don't" code example. The section SHALL cross-reference the following detailed specs: `backend-ci-pipeline`, `backend-testing-standards`, `backend-api-design`, `backend-security-owasp`, `backend-observability`, `backend-schema-design`.
@@ -53,10 +40,3 @@ The quick-reference SHALL include a section on commit message format, branch nam
 #### Scenario: Developer navigates to detailed git workflow spec
 - **WHEN** a developer needs full git workflow rules
 - **THEN** the section provides a reference to `shared-git-workflow`
-
-### Requirement: CI checks reference section
-The quick-reference SHALL include a section listing all CI checks with their fix commands, so developers can resolve failures locally before pushing.
-
-#### Scenario: Developer fixes a failing CI check
-- **WHEN** a developer's PR fails a CI check
-- **THEN** they find the fix command for that check in the quick-reference (e.g., `cd backend && ruff check . --fix && ruff format .`)

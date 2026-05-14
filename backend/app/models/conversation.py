@@ -10,9 +10,7 @@ from app.core.database import Base
 class Conversation(Base):
     __tablename__ = "conversations"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     title: Mapped[str] = mapped_column(String(255), nullable=False, default="New Chat")
     provider: Mapped[str] = mapped_column(String(50), nullable=False)
     model: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -24,6 +22,8 @@ class Conversation(Base):
     )
 
     messages: Mapped[list["Message"]] = relationship(
-        "Message", back_populates="conversation", cascade="all, delete-orphan",
+        "Message",
+        back_populates="conversation",
+        cascade="all, delete-orphan",
         order_by="Message.created_at",
     )

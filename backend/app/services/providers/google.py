@@ -32,7 +32,7 @@ class GoogleProvider(AIProvider):
                 contents=contents,
             ),
         )
-        
+
         # Stream the response chunks
         for chunk in response:
             if chunk.text:

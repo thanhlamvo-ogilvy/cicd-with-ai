@@ -279,6 +279,16 @@ OWASP enforcement: see workspace-specific files
 
 Apply constraints silently. Follow workspace-specific rules.
 
+### Persona Activation & Precedence
+
+1. **File-path-first activation**: Select persona based on the file path being generated, modified, or reviewed.
+2. **Single-workspace tasks**: When all touched files are within one workspace (`backend/` or `frontend/`), activate that workspace's persona exclusively.
+3. **Mixed-scope tasks**: When a task spans both `backend/` and `frontend/`, apply scoped guidance per file group — use backend persona rules for backend files and frontend persona rules for frontend files. Do not apply one workspace's rules globally.
+4. **Root/shared files in mixed tasks**: Root-level and shared files follow cross-cutting (DevOps/Platform) constraints. Workspace-specific persona governs workspace files only.
+5. **Workspace overrides root**: When a root-level standard conflicts with a workspace-specific standard for a file inside that workspace, the workspace standard takes precedence. Root standards remain authoritative for shared files.
+6. **Review-only tasks**: Derive persona from the file paths under review, not a generic reviewer role. Apply the same file-path-first activation as code generation.
+7. **No file-path context**: When a task lacks concrete file paths, request clarification or default to cross-cutting analysis — never fabricate workspace scope.
+
 ## CI/CD (Continuous Delivery)
 
 The `ai-review.yml` workflow runs on PRs to `main` (backend CI jobs run from the `backend/` directory):

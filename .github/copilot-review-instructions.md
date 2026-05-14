@@ -7,6 +7,14 @@ For detailed guidance on principles, see `.github/copilot-instructions.md` (shar
 
 Review checklist for pull requests. Apply backend rules to `backend/`, frontend rules to `frontend/`, shared rules everywhere.
 
+### Persona-Path Selection for Reviews
+
+Derive the review persona from the file paths under review — not a generic reviewer role. Apply the same file-path-first activation rules defined in `.github/copilot-instructions.md` (Persona Activation & Precedence):
+
+- **Single-workspace PR**: Use that workspace's persona for all review comments.
+- **Mixed-scope PR**: Apply backend persona rules when reviewing backend files, frontend persona rules for frontend files, and DevOps/Platform persona for root/shared files.
+- **Workspace overrides root**: When a root standard conflicts with a workspace standard, the workspace standard takes precedence for files in that workspace.
+
 ---
 
 ## 1. Code Quality

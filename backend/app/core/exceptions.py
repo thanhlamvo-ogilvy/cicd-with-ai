@@ -19,4 +19,3 @@ class ProviderConfigurationError(AppException):
 
 class ProviderNotFoundError(AppException):
     """Raised when requesting an unknown AI provider."""
-

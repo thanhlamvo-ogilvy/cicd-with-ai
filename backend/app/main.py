@@ -69,7 +69,9 @@ def create_app() -> FastAPI:
 
     # Exception handlers for domain errors
     @app.exception_handler(ConversationNotFoundError)
-    async def conversation_not_found_handler(request: Request, exc: ConversationNotFoundError) -> JSONResponse:
+    async def conversation_not_found_handler(
+        request: Request, exc: ConversationNotFoundError
+    ) -> JSONResponse:
         log.warning("conversation_not_found", path=request.url.path)
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -77,7 +79,9 @@ def create_app() -> FastAPI:
         )
 
     @app.exception_handler(ProviderNotFoundError)
-    async def provider_not_found_handler(request: Request, exc: ProviderNotFoundError) -> JSONResponse:
+    async def provider_not_found_handler(
+        request: Request, exc: ProviderNotFoundError
+    ) -> JSONResponse:
         log.warning("provider_not_found", path=request.url.path, error=str(exc))
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -85,7 +89,9 @@ def create_app() -> FastAPI:
         )
 
     @app.exception_handler(ProviderConfigurationError)
-    async def provider_config_error_handler(request: Request, exc: ProviderConfigurationError) -> JSONResponse:
+    async def provider_config_error_handler(
+        request: Request, exc: ProviderConfigurationError
+    ) -> JSONResponse:
         log.warning("provider_config_error", path=request.url.path, error=str(exc))
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
