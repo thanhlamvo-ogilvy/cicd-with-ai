@@ -64,6 +64,7 @@ select = [
 ignore = [
     "S101", "S105", "S106",  # allow assert, hardcoded password bindings
     "ANN401",                # allow Any type
+    "B008",                  # allow Depends() in FastAPI route defaults
 ]
 
 [tool.ruff.lint.per-file-ignores]
