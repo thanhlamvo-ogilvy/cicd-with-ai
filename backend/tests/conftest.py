@@ -1,5 +1,11 @@
 """Shared pytest fixtures and configuration."""
 
+import os
+
+# Must be set before app modules are imported to bypass the secret_key validator
+os.environ.setdefault("API_ENV", "test")
+os.environ.setdefault("SECRET_KEY", "test-secret-key-for-testing-only")
+
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine

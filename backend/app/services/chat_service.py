@@ -1,4 +1,4 @@
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 
 import structlog
 from sqlalchemy import func, select
@@ -31,7 +31,7 @@ def get_provider(provider_name: str) -> AIProvider:
             raise ProviderConfigurationError("Provider 'openai' is not configured")
         return OpenAIProvider(api_key=api_key, base_url=base_url or None)
 
-    providers: dict[str, tuple[str, type[AIProvider]]] = {
+    providers: dict[str, tuple[str, Callable[[str], AIProvider]]] = {
         "anthropic": (settings.anthropic_api_key, AnthropicProvider),
         "google": (settings.google_api_key, GoogleProvider),
     }

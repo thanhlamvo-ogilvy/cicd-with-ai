@@ -1,6 +1,8 @@
 from collections.abc import AsyncGenerator
+from typing import cast
 
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, AsyncStream
+from openai.types.chat import ChatCompletionChunk, ChatCompletionMessageParam
 
 from app.services.providers.base import AIProvider, ChatMessage
 
@@ -10,17 +12,22 @@ API_TIMEOUT = 60
 
 class OpenAIProvider(AIProvider):
     def __init__(self, api_key: str, base_url: str | None = None) -> None:
-        kwargs: dict[str, str | int] = {"api_key": api_key or "lm-studio", "timeout": API_TIMEOUT}
-        if base_url:
-            kwargs["base_url"] = base_url
-        self.client = AsyncOpenAI(**kwargs)
+        self.client = AsyncOpenAI(
+            api_key=api_key or "lm-studio",
+            base_url=base_url,
+            timeout=API_TIMEOUT,
+        )
 
     async def stream_chat(
         self, messages: list[ChatMessage], model: str
     ) -> AsyncGenerator[str, None]:
-        stream = await self.client.chat.completions.create(
+        typed_messages = cast(
+            list[ChatCompletionMessageParam],
+            [{"role": m.role, "content": m.content} for m in messages],
+        )
+        stream: AsyncStream[ChatCompletionChunk] = await self.client.chat.completions.create(
             model=model,
-            messages=[{"role": m.role, "content": m.content} for m in messages],
+            messages=typed_messages,
             stream=True,
         )
         async for chunk in stream:

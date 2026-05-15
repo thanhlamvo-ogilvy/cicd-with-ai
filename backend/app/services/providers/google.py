@@ -1,8 +1,10 @@
 import asyncio
 from collections.abc import AsyncGenerator
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 
 from google import genai
+from google.genai.types import Content, Part
 
 from app.services.providers.base import AIProvider, ChatMessage
 
@@ -18,10 +20,13 @@ class GoogleProvider(AIProvider):
     async def stream_chat(
         self, messages: list[ChatMessage], model: str
     ) -> AsyncGenerator[str, None]:
-        contents = []
-        for m in messages:
-            role = "model" if m.role == "assistant" else "user"
-            contents.append({"role": role, "parts": [{"text": m.content}]})
+        contents: list[Any] = [
+            Content(
+                role="model" if m.role == "assistant" else "user",
+                parts=[Part(text=m.content)],
+            )
+            for m in messages
+        ]
 
         # Run the synchronous call in a thread pool to avoid blocking the event loop
         loop = asyncio.get_event_loop()

@@ -1,4 +1,5 @@
 import json
+from collections.abc import AsyncGenerator
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -20,7 +21,7 @@ async def chat(request: ChatRequest, db: DbSession) -> StreamingResponse:
     conversation = await chat_service.get_or_create_conversation(db, request)
     conversation_id = str(conversation.id)
 
-    async def event_stream() -> ...:  # type: ignore[override]
+    async def event_stream() -> AsyncGenerator[str, None]:
         # Send conversation ID as first event
         yield f"data: {json.dumps({'conversation_id': conversation_id})}\n\n"
 

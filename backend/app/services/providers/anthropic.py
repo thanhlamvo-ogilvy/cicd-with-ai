@@ -1,6 +1,8 @@
 from collections.abc import AsyncGenerator
+from typing import cast
 
 from anthropic import AsyncAnthropic
+from anthropic.types import MessageParam
 
 from app.services.providers.base import AIProvider, ChatMessage
 
@@ -17,7 +19,7 @@ class AnthropicProvider(AIProvider):
     ) -> AsyncGenerator[str, None]:
         # Anthropic requires separating the system message
         system_content = ""
-        chat_messages = []
+        chat_messages: list[dict[str, str]] = []
         for m in messages:
             if m.role == "system":
                 system_content = m.content
@@ -26,7 +28,7 @@ class AnthropicProvider(AIProvider):
 
         async with self.client.messages.stream(
             model=model,
-            messages=chat_messages,
+            messages=cast(list[MessageParam], chat_messages),
             system=system_content or "You are a helpful assistant.",
             max_tokens=4096,
         ) as stream:

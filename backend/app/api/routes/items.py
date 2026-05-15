@@ -19,17 +19,24 @@ async def list_items(
     limit: int = 100,
 ) -> ItemListResponse:
     items, total = await item_service.get_items(db, skip=skip, limit=limit)
-    return ItemListResponse(items=items, total=total, skip=skip, limit=limit)
+    return ItemListResponse(
+        items=[ItemResponse.model_validate(item) for item in items],
+        total=total,
+        skip=skip,
+        limit=limit,
+    )
 
 
 @router.get("/{item_id}", response_model=ItemResponse)
 async def get_item(item_id: int, db: DbSession) -> ItemResponse:
-    return await item_service.get_item(db, item_id)
+    item = await item_service.get_item(db, item_id)
+    return ItemResponse.model_validate(item)
 
 
 @router.post("", response_model=ItemResponse, status_code=201)
 async def create_item(payload: ItemCreate, db: DbSession) -> ItemResponse:
-    return await item_service.create_item(db, payload)
+    item = await item_service.create_item(db, payload)
+    return ItemResponse.model_validate(item)
 
 
 @router.put("/{item_id}", response_model=ItemResponse)
@@ -38,7 +45,8 @@ async def update_item(
     payload: ItemUpdate,
     db: DbSession,
 ) -> ItemResponse:
-    return await item_service.update_item(db, item_id, payload)
+    item = await item_service.update_item(db, item_id, payload)
+    return ItemResponse.model_validate(item)
 
 
 @router.delete("/{item_id}", status_code=204)

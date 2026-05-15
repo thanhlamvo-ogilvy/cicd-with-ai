@@ -12,7 +12,7 @@ from app.api.router import api_router
 from app.core.config import settings
 from app.core.database import engine
 from app.core.exceptions import (
-    AppException,
+    AppError,
     ConversationNotFoundError,
     ProviderConfigurationError,
     ProviderNotFoundError,
@@ -98,8 +98,8 @@ def create_app() -> FastAPI:
             content={"detail": str(exc)},
         )
 
-    @app.exception_handler(AppException)
-    async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
+    @app.exception_handler(AppError)
+    async def app_exception_handler(request: Request, exc: AppError) -> JSONResponse:
         log.warning("app_exception", path=request.url.path, error=str(exc))
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,

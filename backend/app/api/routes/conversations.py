@@ -24,7 +24,10 @@ async def list_conversations(
     limit: int = 50,
 ) -> ConversationListResponse:
     conversations, total = await chat_service.list_conversations(db, skip=skip, limit=limit)
-    return ConversationListResponse(conversations=conversations, total=total)
+    return ConversationListResponse(
+        conversations=[ConversationResponse.model_validate(c) for c in conversations],
+        total=total,
+    )
 
 
 @router.post("", response_model=ConversationResponse, status_code=201)

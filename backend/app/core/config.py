@@ -1,3 +1,4 @@
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,8 +11,16 @@ class Settings(BaseSettings):
 
     # Application
     api_env: str = "development"
-    secret_key: str = "change-me"
+    secret_key: str = ""
     access_token_expire_minutes: int = 30
+
+    @model_validator(mode="after")
+    def _validate_secret_key(self) -> "Settings":
+        if self.api_env != "test" and not self.secret_key:
+            raise ValueError(
+                "SECRET_KEY must be set to a strong random value in non-test environments"
+            )
+        return self
 
     # Database
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/appdb"
