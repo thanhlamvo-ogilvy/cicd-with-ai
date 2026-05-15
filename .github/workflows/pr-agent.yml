@@ -23,7 +23,7 @@ jobs:
         uses: Codium-ai/pr-agent@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+         #  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           # Uncomment below to use GPT-4o instead:
           # OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           PR_AGENT_CONFIG: |
