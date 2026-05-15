@@ -1,0 +1,4 @@
+{
+  "chat.agent.maxRequests": 20,
+  "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/bin/python"
+}

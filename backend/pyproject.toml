@@ -15,7 +15,7 @@ dependencies = [
     "pydantic>=2.7.0",
     "pydantic-settings>=2.3.0",
     "python-jose[cryptography]>=3.3.0",
-    "passlib[bcrypt]>=1.7.4",
+    "bcrypt>=4.0.0",
     "python-multipart>=0.0.9",
     "uvicorn[standard]>=0.30.0",
     "structlog>=24.2.0",
@@ -99,6 +99,12 @@ testpaths = ["tests"]
 addopts = "--cov=app --cov-report=term-missing --cov-report=html --cov-fail-under=80"
 markers = [
     "asyncio: mark test as async",
+]
+
+[tool.coverage.run]
+omit = [
+    # Demo-only file, intentionally excluded from main branch — see file header
+    "app/api/routes/demo_violations.py",
 ]
 
 [tool.hatch.build.targets.wheel]
