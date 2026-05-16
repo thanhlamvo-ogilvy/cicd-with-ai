@@ -23,10 +23,12 @@ jobs:
         uses: Codium-ai/pr-agent@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-         #  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          # Uncomment below to use GPT-4o instead:
-          # OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_BASE: "https://api.githubcopilot.com"
           PR_AGENT_CONFIG: |
+            [config]
+            model = "gpt-5.4"
+
             [pr_reviewer]
             require_score_review = true
             inline_code_comments = true
