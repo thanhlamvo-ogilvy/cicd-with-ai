@@ -1,5 +1,35 @@
 schema: spec-driven
 
+context: |
+  Tech stack: Python 3.12, FastAPI, SQLAlchemy async, Alembic, pytest, httpx.
+  Repository standards source of truth:
+  - CODING_STANDARDS.md
+  - openspec/specs/guidelines/backend-api-design/spec.md
+  - openspec/specs/guidelines/backend-testing-standards/spec.md
+  - openspec/specs/guidelines/backend-security-owasp/spec.md
+  - openspec/specs/guidelines/backend-observability/spec.md
+  - openspec/specs/guidelines/backend-schema-design/spec.md
+  - openspec/specs/guidelines/backend-ci-pipeline/spec.md
+  - openspec/specs/guidelines/shared-error-handling/spec.md
+  - openspec/specs/guidelines/shared-dependency-management/spec.md
+  - openspec/specs/guidelines/shared-git-workflow/spec.md
+  Always align generated artifacts and implementation plans with these guidelines.
+  Use English only for code comments, docstrings, identifiers, commit messages, and documentation.
+
+rules:
+  proposal:
+    - Include a "Guideline Alignment" section listing which guideline specs are applied.
+    - State explicit non-goals and out-of-scope items.
+  design:
+    - Include a "Standards Mapping" section mapping decisions to guideline specs.
+    - Document security, testing, and observability implications for backend changes.
+  tasks:
+    - Add explicit tasks for guideline compliance checks (API design, security, testing, CI).
+    - Add at least one task that verifies tests and quality checks locally before completion.
+  specs:
+    - Cross-reference relevant files under openspec/specs/guidelines when defining requirements.
+    - Keep requirement language normative (MUST/SHALL) and testable via concrete scenarios.
+
 # Project context (optional)
 # This is shown to AI when creating artifacts.
 # Add your tech stack, conventions, style guides, domain knowledge, etc.
