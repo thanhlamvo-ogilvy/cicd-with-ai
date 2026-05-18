@@ -28,36 +28,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_API_BASE: "https://api.githubcopilot.com"
-          name: AI Code Review (PR Agent)
-
-on:
-  pull_request:
-    types: [opened, synchronize]
-    branches:
-      - main
-
-jobs:
-  pr-agent:
-    name: AI Pull Request Review
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
-      contents: read
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Build PR Agent config from guidelines
-        run: bash scripts/build-pr-agent-config.sh --env
-
-      - name: Run PR Agent Review
-        uses: Codium-ai/pr-agent@main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPENAI_API_KEY: ${{ secrets.GITHUB_TOKEN }}
-          OPENAI_API_BASE: "https://api.githubcopilot.com"
           PR_AGENT_CONFIG: |
             ${{ env.PR_AGENT_CONFIG }}
-
