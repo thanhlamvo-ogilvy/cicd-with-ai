@@ -23,7 +23,7 @@ jobs:
         run: bash scripts/build-pr-agent-config.sh --env
 
       - name: Run PR Agent Review
-        uses: Codium-ai/pr-agent@main
+        uses: Codium-ai/pr-agent@v0.35.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.GITHUB_TOKEN }}
