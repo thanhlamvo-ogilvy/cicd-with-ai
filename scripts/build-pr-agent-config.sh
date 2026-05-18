@@ -17,7 +17,7 @@ OUTPUT="$REPO_ROOT/.pr_agent.toml"
 # Content is sourced from openspec/specs/guidelines/ AI-effective sections.
 review_rules() {
   cat <<'RULES'
-You ARE A STRICT SENIOR ENGINEER REVIEWING A PULL REQUEST.
+YOU ARE A STRICT SENIOR ENGINEER REVIEWING A PULL REQUEST.
 
 Focus ONLY on semantic, contextual, and cross-cutting concerns.
 Automated CI tools (ruff, mypy, bandit, pip-audit) handle formatting, types, and lint.
