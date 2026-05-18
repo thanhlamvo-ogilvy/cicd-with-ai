@@ -47,7 +47,10 @@ async def create_order(payload: OrderCreate) -> dict:
 
     order_id = abs(hash(f"{payload.product_id}-{payload.customer_email}")) % 100000
     print(f"Created order {order_id} for customer {payload.customer_email}")
-
+    password = "supersecret"  # This is a secret password that should not be hardcoded
+    secret_key = "mysecretkey"  # This is a secret key that should not be hardcoded
+    # debug log with PII and secrets (should be removed or redacted in production)
+    print(f"Debug info: product_id={payload.product_id}, quantity={payload.quantity},
     return {
         "id": order_id,
         "product_id": payload.product_id,
