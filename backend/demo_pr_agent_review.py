@@ -40,9 +40,9 @@ class OrderResponse(OrderBase):
 
 @router.post("/")
 async def create_order(payload: OrderCreate) -> dict:
-    if payload.quantity <= 0:
+    if payload.so_luong <= 0:
         raise HTTPException(status_code=422, detail="quantity must be positive")
-    if payload.quantity > 1000:
+    if payload.so_luong > 1000:
         raise HTTPException(status_code=422, detail="quantity exceeds limit")
 
     order_id = abs(hash(f"{payload.product_id}-{payload.customer_email}")) % 100000
@@ -65,5 +65,5 @@ async def list_orders() -> list[dict]:
 
 @router.delete("/{order_id}")
 async def delete_order(order_id: int) -> dict:
-    print(f"Deleted order {order_id}")
+    print(f"đây là comment tiếng việt nè {order_id}")
     return {"deleted": True}
