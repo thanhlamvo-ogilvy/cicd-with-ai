@@ -15,13 +15,41 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-PR_AGENT_IMAGE="codiumai/pr-agent:latest"
+PR_AGENT_IMAGE="pragent/pr-agent:latest"
 
 # ─── Argument parsing ─────────────────────────────────────────────────────────
 
-FILES_PATH=""
+FILES_PATH="backend/"
 OUTPUT_FILE=""
+VERBOSE=false
 
+# shellcheck source=backend/scripts/_common.sh
+source "$SCRIPT_DIR/_common.sh"
+
+require_command docker
+
+# --- Ensure Docker daemon is running ---
+if ! docker info >/dev/null 2>&1; then
+  echo "Docker daemon is not running. Attempting to start..."
+  if command -v colima &>/dev/null; then
+    colima start 2>/dev/null || true
+  elif [[ "$(uname)" == "Darwin" ]] && [[ -d "/Applications/Docker.app" ]]; then
+    open -a Docker 2>/dev/null || true
+  elif command -v systemctl &>/dev/null; then
+    sudo systemctl start docker 2>/dev/null || true
+  fi
+
+  # Wait up to 60s for Docker to become available (Colima can be slow on first start)
+  elapsed=0
+  while ! docker info >/dev/null 2>&1; do
+    if [[ $elapsed -ge 60 ]]; then
+      die "Docker daemon did not start within 60s. Please start Docker manually (e.g. 'colima start')."
+    fi
+    sleep 2
+    elapsed=$((elapsed + 2))
+  done
+  echo "Docker daemon is now running."
+fi
 
 usage() {
   cat <<'EOF'
@@ -35,6 +63,7 @@ Options:
   --files <path>           Scope review focus to specific file(s)
   --output <file>          Write review output to file in addition to stdout
   --pr-url <url>           Use this GitHub PR URL instead of auto-detecting
+  --verbose, -v            Print debug summary of what will be scanned before running
   --help                   Show this help message
 
 Environment (required):
@@ -100,6 +129,10 @@ while [[ $# -gt 0 ]]; do
       fi
       PR_URL_OVERRIDE="$2"
       shift 2
+      ;;
+    --verbose | -v)
+      VERBOSE=true
+      shift
       ;;
     --help | -h)
       usage
@@ -206,10 +239,23 @@ api_base_override = "${OPENAI_API_BASE:-}"
 if api_base_override and 'custom_model_max_tokens' not in text:
     text = re.sub(r'(?m)^(\[config\])', r'\1\ncustom_model_max_tokens = 4096', text, count=1)
 
-# Add [ignore] glob section to skip doc/config files and reduce the diff to
-# only code files — shrinks the prompt to fit local model context windows.
+# Add [ignore] glob section to skip doc/config files, non-backend files, and
+# reduce the diff to only backend code — shrinks the prompt to fit local model
+# context windows.
 if api_base_override and '[ignore]' not in text:
-    text += '\n[ignore]\nglob = ["**/*.md", "**/*.yaml", "**/*.yml", "**/*.toml", "**/*.sh"]\n'
+    text += '\n[ignore]\nglob = ["**/*.md", "**/*.yaml", "**/*.yml", "**/*.toml", "**/*.sh", "frontend/**"]\n'
+
+# Append files-focus note to extra_instructions in [pr_reviewer] so the AI
+# knows what to focus on without overriding the full ruleset.
+# (Passing --pr_reviewer.extra_instructions as a CLI flag would REPLACE the
+# TOML extra_instructions due to YAML dict parsing of any ": " in the value.)
+files_path = "${FILES_PATH:-}"
+if files_path:
+    text = re.sub(
+        r'(extra_instructions\s*=\s*""")(.*?)(""")',
+        lambda m: m.group(1) + m.group(2).rstrip() + f'\n\nFocus the review only on changes in: {files_path}\n' + m.group(3),
+        text, count=1, flags=re.DOTALL
+    )
 
 open(path, 'w').write(text)
 PYEOF
@@ -277,13 +323,15 @@ if [[ -n "${OPENAI_API_BASE:-}" ]]; then
   _docker_env_args+=("-e" "OPENAI_API_BASE")
 fi
 
-# File-scoped review: add as extra instructions to the reviewer.
+# File-scoped review: focus is conveyed through two mechanisms already in place —
+#   1. [ignore] globs in .pr_agent.toml strip non-backend files from the diff (local LLM)
+#   2. The FILES_PATH is noted in extra_instructions inside .pr_agent.toml (see below)
+#
+# Do NOT pass --pr_reviewer.extra_instructions as a CLI flag: PR Agent parses the
+# value as YAML, any ": " in the string becomes a dict key-value pair, and the
+# result REPLACES (not appends to) the extra_instructions already in .pr_agent.toml —
+# erasing all BLOCK/SECURITY/OBSERVABILITY review rules and producing a clean review.
 _extra_pr_agent_args=()
-if [[ -n "$FILES_PATH" ]]; then
-  _extra_pr_agent_args+=(
-    "--pr_reviewer.extra_instructions=Focus the review only on changes in: ${FILES_PATH}"
-  )
-fi
 
 # Mount the generated .pr_agent.toml as .secrets.toml inside the container so
 # the custom_merge_loader picks it up (it loads file-based TOML only, not the
@@ -304,9 +352,139 @@ if [[ -n "${OPENAI_API_BASE:-}" ]]; then
   _model_for_litellm="${OPENAI_MODEL}"
   if [[ "${_model_for_litellm}" != openai/* ]]; then
     _model_for_litellm="openai/${_model_for_litellm}"
+    echo "  Model: ${_model_for_litellm}"
   fi
   _docker_env_args+=("-e" "CONFIG__MODEL=${_model_for_litellm}")
   _docker_env_args+=("-e" "CONFIG__CUSTOM_MODEL_MAX_TOKENS=4096")
+fi
+
+# ─── Verbose debug summary ───────────────────────────────────────────────────
+
+if [[ "$VERBOSE" == true ]]; then
+  echo ""
+  echo "══════════════════════════════════════════════════════════════════"
+  echo "  DEBUG: What will be sent to AI for review"
+  echo "══════════════════════════════════════════════════════════════════"
+  echo "  PR URL       : $_pr_url"
+  echo "  Image        : ${PR_AGENT_IMAGE}"
+  echo "  Model        : ${OPENAI_MODEL:-default (from .pr_agent.toml)}"
+  echo "  API base     : ${OPENAI_API_BASE:-https://api.openai.com (default)}"
+  echo "  Files filter : ${FILES_PATH:-(all changed files)}"
+  echo "  Output file  : ${OUTPUT_FILE:-(none)}"
+  echo ""
+
+  # Temp files for safe data passing to Python (avoids embedding shell vars in heredocs)
+  _tmp_diff=$(mktemp)
+  _tmp_files=$(mktemp)
+  trap 'rm -f "$_tmp_diff" "$_tmp_files"' EXIT
+
+  if command -v gh &>/dev/null; then
+    # ── File inclusion/exclusion analysis ──────────────────────────────────
+    echo "  ── File analysis ──────────────────────────────────────────────"
+
+    gh pr diff "$_pr_url" --name-only 2>/dev/null > "$_tmp_files" || true
+
+    if [[ ! -s "$_tmp_files" ]]; then
+      echo "  ⚠ Could not retrieve changed files from GitHub"
+    else
+      # Classify files as included/excluded using [ignore] globs from .pr_agent.toml
+      python3 - "$REPO_ROOT/.pr_agent.toml" "$_tmp_files" <<'PYEOF'
+import sys, re, fnmatch
+
+toml_path, files_path = sys.argv[1], sys.argv[2]
+text = open(toml_path).read()
+
+m = re.search(r'\[ignore\][^\[]*?glob\s*=\s*\[([^\]]+)\]', text, re.DOTALL)
+globs = []
+if m:
+    globs = [g.strip().strip('"\'') for g in m.group(1).split(',') if g.strip().strip('"\'')]
+
+changed = [f.strip() for f in open(files_path) if f.strip()]
+included, excluded = [], []
+for f in changed:
+    if any(fnmatch.fnmatch(f, g) for g in globs):
+        excluded.append(f)
+    else:
+        included.append(f)
+
+print(f"  Ignore globs: {globs if globs else '(none)'}")
+print()
+print("  Files INCLUDED in AI review:")
+for f in included:
+    print(f"    ✅ {f}")
+if not included:
+    print("    ⚠ (none — all files filtered out by [ignore] globs!)")
+print()
+print("  Files EXCLUDED by [ignore] globs:")
+for f in excluded:
+    print(f"    ⛔ {f}")
+if not excluded:
+    print("    (none)")
+PYEOF
+    fi
+
+    echo ""
+
+    # ── Active .pr_agent.toml ─────────────────────────────────────────────────
+    echo "  ── .pr_agent.toml (active config sent to container) ─────────────"
+    sed 's/^/    /' "$REPO_ROOT/.pr_agent.toml"
+    echo ""
+
+    # ── Actual diff content the AI will receive ───────────────────────────────
+    echo "  ── PR diff (content the AI will review) ──────────────────────────"
+    gh pr diff "$_pr_url" 2>/dev/null > "$_tmp_diff" || true
+
+    if [[ ! -s "$_tmp_diff" ]]; then
+      echo "  ⚠ Could not retrieve diff from GitHub"
+    else
+      _diff_lines=$(wc -l < "$_tmp_diff" | tr -d ' ')
+      _diff_chars=$(wc -c < "$_tmp_diff" | tr -d ' ')
+      echo "  Full diff: ${_diff_lines} lines / ${_diff_chars} chars"
+      echo ""
+
+      # Print only diff blocks for files that pass the [ignore] filter
+      python3 - "$REPO_ROOT/.pr_agent.toml" "$_tmp_files" "$_tmp_diff" <<'PYEOF'
+import sys, re, fnmatch
+
+toml_path, files_path, diff_path = sys.argv[1], sys.argv[2], sys.argv[3]
+text = open(toml_path).read()
+
+m = re.search(r'\[ignore\][^\[]*?glob\s*=\s*\[([^\]]+)\]', text, re.DOTALL)
+globs = []
+if m:
+    globs = [g.strip().strip('"\'') for g in m.group(1).split(',') if g.strip().strip('"\'')]
+
+changed = [f.strip() for f in open(files_path) if f.strip()]
+included = {f for f in changed if not any(fnmatch.fnmatch(f, g) for g in globs)}
+
+if not included:
+    print("  ⚠  All changed files are excluded — the AI will receive an empty diff!")
+    sys.exit(0)
+
+diff_text = open(diff_path).read()
+# Split into per-file blocks on "diff --git" headers
+blocks = re.split(r'(?=^diff --git )', diff_text, flags=re.MULTILINE)
+sent_files = []
+for block in blocks:
+    m = re.match(r'diff --git a/(\S+)', block)
+    if not m:
+        continue
+    if m.group(1) in included:
+        sent_files.append(m.group(1))
+        print(block)
+
+sent_lines = sum(len(b.splitlines()) for b in blocks
+                 if re.match(r'diff --git a/(\S+)', b)
+                 and re.match(r'diff --git a/(\S+)', b).group(1) in included)
+print(f"\n  → {len(sent_files)} file(s) / ~{sent_lines} diff lines sent to AI: {sent_files}")
+PYEOF
+    fi
+
+    echo "  ──────────────────────────────────────────────────────────────────"
+  fi
+
+  echo "══════════════════════════════════════════════════════════════════"
+  echo ""
 fi
 
 # Run PR Agent — API keys passed via env only; never appear in command args.
@@ -318,8 +496,8 @@ _review_output=$(
     "${_docker_volume_args[@]}" \
     "${PR_AGENT_IMAGE}" \
     --pr_url "$_pr_url" \
-    "${_extra_pr_agent_args[@]+"${_extra_pr_agent_args[@]}"}" \
     review \
+    "${_extra_pr_agent_args[@]+"${_extra_pr_agent_args[@]}"}" \
     2>&1
 ) || _review_exit=$?
 
@@ -339,41 +517,71 @@ if [[ -n "$OUTPUT_FILE" ]]; then
 fi
 
 # ─── Fetch review result from GitHub ─────────────────────────────────────────
-# PR Agent posts the review as a regular PR comment (not a GitHub PR review with
-# a verdict state).  The comment body starts with "## PR Reviewer Guide".
-# When running locally with the user's own token the comment is authored by the
-# user account, so we match by body content, not by author type.
+# With inline_code_comments = true (set in .pr_agent.toml), PR Agent submits
+# the review via the GitHub PR Reviews API (/pulls/{n}/reviews).  The summary
+# body ("## PR Reviewer Guide") lives in the PR Review object's `body` field
+# and is NOT posted as a plain issue comment.  Querying /issues/{n}/comments
+# would always return empty for this configuration.
+#
+# Strategy:
+#   1. Try /pulls/{n}/reviews first (correct endpoint for inline-comment mode).
+#   2. Fall back to /issues/{n}/comments (plain-comment mode, no inline_code_comments).
+#   3. Treat an unresolvable body as a failure — unknown != pass.
 
 _review_body=""
+_review_state=""
 if command -v gh &>/dev/null; then
   echo ""
   echo "▶ Fetching review result from GitHub PR..."
 
-  # Wait briefly for GitHub to register the posted comment (eventual consistency)
-  sleep 3
+  # Wait for GitHub to register the review (eventual consistency)
+  sleep 5
 
   _pr_number=$(basename "$_pr_url")
-  _review_body=$(gh api "repos/{owner}/{repo}/issues/${_pr_number}/comments" \
+
+  # Primary: PR Reviews API — used when inline_code_comments = true
+  _review_body=$(gh api "repos/{owner}/{repo}/pulls/${_pr_number}/reviews" \
     --jq '[.[] | select(.body | test("^## PR Reviewer Guide"))] | last | .body' \
     2>/dev/null || true)
+  _review_state=$(gh api "repos/{owner}/{repo}/pulls/${_pr_number}/reviews" \
+    --jq '[.[] | select(.body | test("^## PR Reviewer Guide"))] | last | .state' \
+    2>/dev/null || true)
+
+  # Fallback: issue comments — used when inline_code_comments = false
+  if [[ -z "$_review_body" || "$_review_body" == "null" ]]; then
+    _review_body=$(gh api "repos/{owner}/{repo}/issues/${_pr_number}/comments" \
+      --jq '[.[] | select(.body | test("^## PR Reviewer Guide"))] | last | .body' \
+      2>/dev/null || true)
+  fi
 
   if [[ -z "$_review_body" || "$_review_body" == "null" ]]; then
-    echo "⚠ Could not retrieve review comment from GitHub (may still be processing)"
+    echo "⚠ Could not retrieve review from GitHub (may still be processing)"
   else
     echo ""
     echo "──────────────────────────────────────────────────────────────────"
     # Print full review; limit to 200 lines to keep terminal readable
     echo "$_review_body" | head -200
     echo "──────────────────────────────────────────────────────────────────"
+    [[ -n "$_review_state" && "$_review_state" != "null" ]] && \
+      echo "  Review state: $_review_state"
   fi
 fi
 
 # ─── Exit code ────────────────────────────────────────────────────────────────
-# PR Agent signals blocking findings via:
-#   • "Major issues detected" in the summary table (no "No " prefix)
-#   • 🔴 emoji — marks critical / must-fix feedback items
+# Blocking when ANY of:
+#   • CHANGES_REQUESTED review state (primary signal — set by PR Agent)
+#   • 🔴 emoji in body (appears when require_score_review=true and score < 50)
+#   • "Major issues detected" in summary table
+#
+# Unknown review (empty body) is treated as failure — never claim success
+# when the result cannot be confirmed.
 
-if echo "$_review_body" | grep -qE "Major issues detected|🔴"; then
+if [[ -z "$_review_body" || "$_review_body" == "null" ]]; then
+  echo ""
+  echo "❌ Review status unknown — could not retrieve result; treating as failed"
+  exit 1
+elif [[ "$_review_state" == "CHANGES_REQUESTED" ]] || \
+     echo "$_review_body" | grep -qE "Major issues detected|🔴"; then
   echo ""
   echo "❌ Review complete: blocking findings detected — fix before pushing"
   exit 1

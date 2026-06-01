@@ -1,4 +1,5 @@
 #!/bin/sh
 
-# Run Ruff format check on backend code
-cd backend && ruff format app/ --silent || exit 1
+# Run pre-commit hooks defined for the pre-commit stage.
+. backend/.venv/bin/activate
+pre-commit run --hook-stage pre-commit

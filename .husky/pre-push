@@ -1,0 +1,5 @@
+#!/bin/sh
+
+# Run pre-commit hooks defined for the pre-push stage.
+. backend/.venv/bin/activate
+pre-commit run --hook-stage pre-push
