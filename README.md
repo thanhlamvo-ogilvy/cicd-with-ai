@@ -161,20 +161,56 @@ pytest --cov=app --cov-report=term-missing
 
 ## CI/CD Pipeline
 
-The `.github/workflows/ai-review.yml` workflow triggers on pull requests targeting the **`review`** branch and:
+Pull requests targeting `main` trigger `.github/workflows/backend-ci.yml` which runs all five jobs in parallel — a merge is blocked unless every check passes:
 
-1. Runs **ruff** linting and format checks
-2. Runs **bandit** security scanning
-3. Automatically requests **GitHub Copilot** as a code reviewer
+| Job | Tool | What it enforces |
+|-----|------|-----------------|
+| `ruff` | Ruff | Lint rules + code formatting |
+| `mypy` | Mypy (strict) | Full type safety |
+| `bandit` | Bandit | Security smell detection |
+| `pytest` | Pytest + coverage | All tests pass; ≥80% coverage |
+| `pip-audit` | pip-audit | No high-severity CVEs in dependencies |
 
-### Pre-commit hooks
+A `status-check` aggregator job reports overall pass/fail as a single required status check.
+
+Pull requests also trigger `.github/workflows/pr-agent.yml` which runs the AI PR review agent (Claude-based) and posts inline code comments focused on architecture, security patterns, and error handling.
+
+### Local Developer Setup
+
+After cloning, install Node dependencies to activate Husky pre-commit hooks:
 
 ```bash
-# Install pre-commit hooks locally
-pre-commit install
+npm install
+```
 
-# Run manually
-pre-commit run --all-files
+Husky hooks run automatically on every commit:
+
+- **pre-commit** — runs `ruff format app/` to auto-fix formatting in `backend/`
+- **commit-msg** — validates the commit message format via commitlint
+
+#### Commit message format
+
+```
+[Primary Change]; [Secondary Changes] & more…
+
+{PackageName}
+- Add concise description of change (≤120 chars)
+- Fix another change
+
+(No dependency updates.)
+```
+
+Rules:
+- Title: lead with the most important change; no trailing period
+- Group bullets under `{PackageName}` headers with present-tense action verbs
+- Never include `Co-authored-by` trailers or AI attribution
+
+#### Branch naming
+
+Use one of the enforced prefixes: `feat/`, `fix/`, `hotfix/`, `release/`
+
+```bash
+git checkout -b feat/my-new-feature
 ```
 
 ---
