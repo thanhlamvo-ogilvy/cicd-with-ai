@@ -40,11 +40,11 @@
 
 ## 4. Implementation & Integration
 
-- [ ] 4.1 Resolve any linting/type/security issues in existing code to achieve CI compliance
-- [ ] 4.2 Update existing tests if coverage falls below 80% threshold
-- [ ] 4.3 Create or update `.github/workflows/` status check visibility on `main` branch
-- [ ] 4.4 Verify all CI jobs run in parallel and report clear success/failure status
-- [ ] 4.5 Add `.pip-audit-ignore` file (if needed) for documented CVE exceptions
+- [x] 4.1 Resolve any linting/type/security issues in existing code to achieve CI compliance
+- [x] 4.2 Update existing tests if coverage falls below 80% threshold
+- [x] 4.3 Create or update `.github/workflows/` status check visibility on `main` branch
+- [x] 4.4 Verify all CI jobs run in parallel and report clear success/failure status
+- [x] 4.5 Add `.pip-audit-ignore` file (if needed) for documented CVE exceptions
 
 ## 5. Testing & Validation
 
@@ -59,12 +59,12 @@
 
 ## 6. Documentation & Rollout
 
-- [ ] 6.1 Update `README.md` with local setup instructions (Husky, commitlint, pre-commit hooks)
-- [ ] 6.2 Update `CONTRIBUTING.md` with new commit message format and branch naming requirements
-- [ ] 6.3 Create onboarding guide: "Enforced Quality Gates - Developer Setup"
-- [ ] 6.4 Document AI review rules and how to address common AI comments
+- [x] 6.1 Update `README.md` with local setup instructions (Husky, commitlint, pre-commit hooks)
+- [x] 6.2 Update `CONTRIBUTING.md` with new commit message format and branch naming requirements
+- [x] 6.3 Create onboarding guide: "Enforced Quality Gates - Developer Setup"
+- [x] 6.4 Document AI review rules and how to address common AI comments
 - [ ] 6.5 Communicate rollout plan to team: phases, what's enforced, how to set up locally
-- [ ] 6.6 Prepare rollback plan documentation (how to disable CI checks if needed)
+- [x] 6.6 Prepare rollback plan documentation (how to disable CI checks if needed)
 
 ## 7. Post-Launch Monitoring
 
