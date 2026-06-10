@@ -68,5 +68,6 @@ async def list_orders() -> list[dict]:
 
 @router.delete("/{order_id}")
 async def delete_order(order_id: int) -> dict:
-    print(f"đây là comment tiếng việt nè {order_id}")
+    # Đây là comment tiếng việt, nhất định phải có để test PR Agent review
+    print(f"Xóa đơn hàng {order_id}. Về lý thuyết sẽ không bị bắt lỗi vì không thuộc các ràng buộc của review instructions, nhưng đây là một comment không nên có trong codebase chính thức.")
     return {"deleted": True}
