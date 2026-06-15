@@ -47,8 +47,11 @@ async def create_order(payload: OrderCreate) -> dict:
 
     order_id = abs(hash(f"{payload.product_id}-{payload.customer_email}")) % 100000
     print(f"Created order {order_id} for customer {payload.customer_email}")
+
+
     password = "supersecret"  # This is a secret password that should not be hardcoded
     secret_key = "mysecretkey"  # This is a secret key that should not be hardcoded
+
     # debug log with PII and secrets (should be removed or redacted in production)
     print(f"Debug info: product_id={payload.product_id}, quantity={payload.quantity},
     return {
@@ -68,6 +71,7 @@ async def list_orders() -> list[dict]:
 
 @router.delete("/{order_id}")
 async def delete_order(order_id: int) -> dict:
+    # The following comment is in Vietnamese and should not be present in the official codebase. It is included here to test the PR Agent's ability to detect inappropriate comments that do not adhere to the codebase's language standards.
     # Đây là comment tiếng việt, nhất định phải có để test PR Agent review
     print(f"Xóa đơn hàng {order_id}. Về lý thuyết sẽ không bị bắt lỗi vì không thuộc các ràng buộc của review instructions, nhưng đây là một comment không nên có trong codebase chính thức.")
     return {"deleted": True}
