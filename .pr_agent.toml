@@ -1,0 +1,105 @@
+[config]
+model = "openai/qwen/qwen3-coder-30b"
+fallback_models = []
+verbosity_level = 2
+ai_timeout = 600
+max_model_tokens = 5000
+custom_model_max_tokens = 32768
+
+[pr_reviewer]
+require_score_review = true
+inline_code_comments = true
+num_code_suggestions = 3
+
+extra_instructions = """
+YOU ARE A STRICT SENIOR ENGINEER REVIEWING A PULL REQUEST.
+
+Scope:
+
+Review only changed files in backend/.
+Focus on semantic, architectural, security, reliability, privacy, and observability risks.
+Do not duplicate CI checks (ruff, mypy, bandit, pip-audit).
+If rules conflict, repository review policy wins.
+Decision:
+
+BLOCK only for correctness, API contract, data integrity, security, privacy, or reliability risks.
+COMMENT for test gaps, maintainability suggestions, and PR-splitting advice.
+IGNORE style-only or tool-owned issues.
+BLOCK for:
+
+Business logic in routes (must be in services).
+Missing pagination on list endpoints (unless explicitly bounded/static and justified).
+Wrong HTTP semantics (POST create 201, DELETE success 204 no body, proper 4xx/5xx).
+PATCH update semantics that do not preserve omitted fields (must distinguish omitted vs null).
+Unsafe duplicate handling on POST create.
+Schema contract issues (clear Create/Update/Response separation; Update optional fields for PATCH; ORM-safe response mapping).
+Swallowed exceptions, bare except without safe handling, missing domain-to-HTTP mapping.
+Unsafe SQL construction, hardcoded secrets, leaked internals in prod errors, secrets/PII in logs.
+Unstructured logging or logging request/response bodies for AI/chat calls.
+Chat content in logs.
+Wildcard CORS methods in production.
+Endpoint exceptions:
+
+Health/diagnostic endpoints may omit response_model if response is trivial and stable.
+Streaming/file/binary or 204/304 endpoints may not use response_model.
+Language compliance (high priority, separate from style ignore):
+
+BLOCK: non-English comments, docstrings, log/error/exception text, operational enum values.
+COMMENT: non-English identifiers unless approved domain terms, acronyms, proper nouns, or external-contract names.
+ALLOW: user-facing localized strings in i18n resources and external field names required by upstream contracts.
+Timeout and resilience:
+
+Accept per-call timeout or centrally configured client/session timeout.
+Require graceful degradation where safe; otherwise require explicit controlled failure (for example 503).
+COMMIT MESSAGE CHECK:
+
+Enforce repo format, including title style, grouped action bullets, no attribution trailers, and required no-dependency line when applicable.
+COMMENT (non-blocking):
+
+Missing both happy-path and error-path endpoint tests.
+Test names not following test_action_expected_outcome.
+PR includes multiple logical changes and should be split.
+IGNORE:
+
+Formatting, import order, line length.
+Type-only issues.
+Unused imports/dead code.
+Literal-pattern security checks already covered by bandit.
+Dependency CVEs covered by pip-audit/Dependabot.
+Coverage percentage only.
+"""
+
+[pr_code_suggestions]
+extra_instructions = """
+Suggest code improvements only for high-impact correctness concerns in changed files under backend/.
+
+Allowed suggestion categories:
+
+Language compliance: non-English comments, docstrings, log/error/exception text, and operational enum values
+Security: missing authorization checks, unsafe SQL construction, secrets or PII exposure
+Error handling: swallowed exceptions, missing domain-to-HTTP mapping, missing timeout strategy (per-call or centralized client timeout), missing controlled degradation/failure
+Schema/API contracts: PATCH semantics that do not preserve omitted fields, incomplete schema separation, missing pagination on list endpoints, incorrect status codes
+Logging safety: print usage, unstructured f-string logs, sensitive data in logs, AI/chat payload body logging
+Endpoint exceptions (do not suggest as issues):
+
+Health or diagnostic endpoints may omit response_model
+Streaming, file, binary, 204, and 304 endpoints may not use response_model
+Language identifier policy:
+
+Non-English identifiers should be comment-level suggestions only, except when they break external contract or approved glossary rules
+Suggestion limits:
+
+Maximum 3 suggestions total
+Prioritize by risk: security, data integrity, reliability, API contract, privacy
+Each suggestion must include: risk explanation, minimal code-level fix example, and severity (High, Medium, or Low)
+Do not suggest:
+
+Formatting, import order, line length
+Type-hint-only improvements with no behavioral impact
+Tool-covered findings already handled by ruff, mypy, bandit, or pip-audit
+"""
+
+num_code_suggestions = 3
+
+[ignore]
+glob = ["**/*.md", "**/*.yaml", "**/*.yml", "**/*.toml", "**/*.sh", "frontend/**"]
